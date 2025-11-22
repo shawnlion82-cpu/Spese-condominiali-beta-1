@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { BankAccount, Expense, Income } from '../types';
-import { Trash2, Pencil, AlertTriangle } from 'lucide-react';
+import { Trash2, Pencil, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 interface BankAccountListProps {
   bankAccounts: BankAccount[];
@@ -13,6 +13,7 @@ interface BankAccountListProps {
 
 export const BankAccountList: React.FC<BankAccountListProps> = ({ bankAccounts, onDelete, onEdit, expenses, incomes }) => {
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
   const accountBalances = useMemo(() => {
     const balances = new Map<string, number>();
@@ -27,6 +28,18 @@ export const BankAccountList: React.FC<BankAccountListProps> = ({ bankAccounts, 
     });
     return balances;
   }, [bankAccounts, expenses, incomes]);
+
+  const sortedAccounts = useMemo(() => {
+    return [...bankAccounts].sort((a, b) => {
+      const balanceA = accountBalances.get(a.id) || 0;
+      const balanceB = accountBalances.get(b.id) || 0;
+      return sortOrder === 'desc' ? balanceB - balanceA : balanceA - balanceB;
+    });
+  }, [bankAccounts, accountBalances, sortOrder]);
+
+  const toggleSort = () => {
+    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
 
   const confirmDelete = (id: string) => {
     setAccountToDelete(id);
@@ -57,13 +70,18 @@ export const BankAccountList: React.FC<BankAccountListProps> = ({ bankAccounts, 
                 <th className="px-6 py-3 font-medium">Nome Conto</th>
                 <th className="px-6 py-3 font-medium">IBAN</th>
                 <th className="px-6 py-3 font-medium text-right">Saldo Iniziale</th>
-                <th className="px-6 py-3 font-medium text-right">Saldo Attuale</th>
+                <th className="px-6 py-3 font-medium text-right cursor-pointer group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" onClick={toggleSort}>
+                  <div className="flex items-center justify-end gap-1">
+                    Saldo Attuale
+                    {sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+                  </div>
+                </th>
                 <th className="px-6 py-3 font-medium text-center">Azioni</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {bankAccounts.length > 0 ? (
-                bankAccounts.map((account) => (
+              {sortedAccounts.length > 0 ? (
+                sortedAccounts.map((account) => (
                   <tr key={account.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                     <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">{account.name}</td>
                     <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-mono">{account.iban}</td>
