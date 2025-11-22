@@ -1,10 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ExpenseCategory } from "../types";
 
-// Initialize the Gemini client
-// Note: In a real production app, you might want to proxy this through a backend
-// to hide the key, but for this frontend-only demo, we use the environment variable.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize the Gemini client safely
+// Use a safe access pattern for process.env to prevent crashes in browsers where process might be undefined
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    console.warn("Error accessing process.env");
+  }
+  return '';
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 const MODEL_NAME = 'gemini-2.5-flash';
 
