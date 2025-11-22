@@ -10,6 +10,7 @@ import { IncomeList } from './components/IncomeList';
 import { BankAccountList } from './components/BankAccountList';
 import { BankAccountForm } from './components/BankAccountForm';
 import { Expense, Income, BankAccount } from './types';
+import { generateId } from './utils';
 
 const defaultExpenses: Expense[] = [
   { id: '1', description: 'Manutenzione Ascensore', amount: 450.00, date: '2023-10-15', category: 'Manutenzione', bankAccountId: 'acc1', status: 'paid' },
@@ -87,25 +88,33 @@ export const App: React.FC = () => {
 
   // Initialize Theme
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      setDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setDarkMode(false);
-      document.documentElement.classList.remove('dark');
+    try {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        setDarkMode(true);
+        document.documentElement.classList.add('dark');
+      } else {
+        setDarkMode(false);
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (e) {
+      console.warn('Could not access localStorage for theme');
     }
   }, []);
 
   const toggleTheme = () => {
     setDarkMode(prev => {
       const newMode = !prev;
-      if (newMode) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
+      try {
+        if (newMode) {
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('theme', 'dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('theme', 'light');
+        }
+      } catch (e) {
+        console.warn('Could not save theme preference');
       }
       return newMode;
     });
@@ -113,8 +122,12 @@ export const App: React.FC = () => {
 
   // Load condo name on initial mount
   useEffect(() => {
-    const savedName = localStorage.getItem('condo_name');
-    if (savedName) setCondoName(savedName);
+    try {
+      const savedName = localStorage.getItem('condo_name');
+      if (savedName) setCondoName(savedName);
+    } catch (e) {
+      console.warn('Could not access localStorage for condo_name');
+    }
   }, []);
 
   // Load data when condoName changes
@@ -141,7 +154,7 @@ export const App: React.FC = () => {
     }
   }, [condoName]);
 
-  // Save data whenever it changes with Quota handling
+  // Save data whenever it changes
   useEffect(() => {
     if (condoName) {
       try {
@@ -175,12 +188,18 @@ export const App: React.FC = () => {
 
   const handleLogin = (name: string) => {
     setCondoName(name);
-    localStorage.setItem('condo_name', name);
+    try {
+      localStorage.setItem('condo_name', name);
+    } catch (e) {
+      console.warn('Could not save condo_name');
+    }
   };
 
   const handleLogout = () => {
     setCondoName(null);
-    localStorage.removeItem('condo_name');
+    try {
+      localStorage.removeItem('condo_name');
+    } catch (e) {}
     setCurrentView('dashboard');
     setEditingExpense(null);
     setEditingIncome(null);
@@ -208,10 +227,10 @@ export const App: React.FC = () => {
   const handleStartDuplicateExpense = (expense: Expense) => {
      const duplicatedExpense: Expense = {
       ...expense,
-      id: crypto.randomUUID(),
+      id: generateId(),
       description: `${expense.description} (Copia)`,
       date: new Date().toISOString().split('T')[0],
-      attachments: [] // Do not copy attachments to save space and avoid duplication of large data
+      attachments: [] // Do not copy attachments to save space
      };
      setEditingExpense(duplicatedExpense);
      setCurrentView('add');

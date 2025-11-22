@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import { Income, IncomeCategory } from '../types';
+import { generateId } from '../utils';
 
 interface IncomeFormProps {
   onAdd: (income: Income) => void;
@@ -49,7 +50,7 @@ export const IncomeForm: React.FC<IncomeFormProps> = ({ onAdd, onUpdate, onCance
       }
 
       const incomeData: any = {
-        id: isEditing ? initialData.id : crypto.randomUUID(),
+        id: isEditing ? initialData.id : generateId(),
         description,
         amount: parsedAmount,
         date,
@@ -77,7 +78,7 @@ export const IncomeForm: React.FC<IncomeFormProps> = ({ onAdd, onUpdate, onCance
       const capitalizedMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
       const incomeData: Income = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         description: `Riepilogo Incassi - ${capitalizedMonthName} ${year}`,
         amount: parsedMonthlyAmount,
         date: incomeDate,

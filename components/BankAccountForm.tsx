@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import { BankAccount } from '../types';
+import { generateId } from '../utils';
 
 interface BankAccountFormProps {
   onAdd: (account: BankAccount) => void;
@@ -30,7 +31,7 @@ export const BankAccountForm: React.FC<BankAccountFormProps> = ({ onAdd, onUpdat
     }
 
     const accountData: BankAccount = {
-      id: isEditing ? initialData.id : crypto.randomUUID(),
+      id: isEditing ? initialData.id : generateId(),
       name,
       initialBalance: parsedBalance,
       iban: iban.toUpperCase(),

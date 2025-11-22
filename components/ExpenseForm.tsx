@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Check, X, Loader2, Upload, Image as ImageIcon, Trash2, FileText, Plus, AlertTriangle, Download, Paperclip } from 'lucide-react';
 import { Expense, ExpenseCategory, Attachment, BankAccount } from '../types';
 import { parseExpenseWithGemini, FileInput } from '../services/geminiService';
+import { generateId } from '../utils';
 
 interface ExpenseFormProps {
   onAdd: (expense: Expense) => void;
@@ -72,7 +73,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onAdd, onUpdate, onCan
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           resolve({
-            id: crypto.randomUUID(),
+            id: generateId(),
             name: file.name,
             type: file.type,
             file,
@@ -165,7 +166,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onAdd, onUpdate, onCan
     if (isEditing && initialData) {
       expenseData.id = initialData.id;
     } else {
-      expenseData.id = crypto.randomUUID();
+      expenseData.id = generateId();
     }
 
     if (!isEditing && existingExpenses.length > 0) {

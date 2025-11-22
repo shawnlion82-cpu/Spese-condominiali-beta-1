@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
   <head>
@@ -18,10 +19,14 @@
     </style>
     <script>
       // Check local storage and apply dark mode immediately to prevent FOUC
-      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
+      try {
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+      } catch (e) {
+        console.log('LocalStorage not available');
       }
     </script>
   <script type="importmap">
