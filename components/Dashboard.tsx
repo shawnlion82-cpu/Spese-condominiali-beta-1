@@ -2,17 +2,18 @@
 import React, { useMemo, useState } from 'react';
 import { Expense, Income, BankAccount } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { TrendingUp, TrendingDown, AlertCircle, CalendarRange, ChevronDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertCircle, CalendarRange, ChevronDown, Download, Database } from 'lucide-react';
 
 interface DashboardProps {
   expenses: Expense[];
   incomes: Income[];
   bankAccounts: BankAccount[];
+  condoName: string;
 }
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
 
-export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAccounts, condoName }) => {
   
   const allYears = useMemo(() => {
     const expenseYears = expenses.map(e => new Date(e.date).getFullYear());
@@ -73,6 +74,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes }) => {
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(val);
+
+  const handleExportBackup = () => {
+    const backupData = {
+      condoName,
+      exportDate: new Date().toISOString(),
+      expenses,
+      incomes,
+      bankAccounts,
+      version: '1.0'
+    };
+    
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_${condoName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -197,6 +219,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes }) => {
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+      
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <Database className="w-5 h-5 text-indigo-500" />
+              Gestione Dati
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Esporta tutti i dati finanziari (Spese, Incassi, Conti) in un unico file di backup JSON.
+            </p>
+          </div>
+          <button 
+            onClick={handleExportBackup}
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
+          >
+            <Download size={18} />
+            Esporta Backup Completo
+          </button>
         </div>
       </div>
     </div>

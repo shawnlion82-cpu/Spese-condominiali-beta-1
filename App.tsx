@@ -330,7 +330,7 @@ export const App: React.FC = () => {
 
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-fade-in">
-          {currentView === 'dashboard' && <Dashboard expenses={expenses} incomes={incomes} bankAccounts={bankAccounts} />}
+          {currentView === 'dashboard' && <Dashboard expenses={expenses} incomes={incomes} bankAccounts={bankAccounts} condoName={condoName} />}
           {currentView === 'list' && <ExpenseList expenses={expenses} onDelete={handleDeleteExpense} onEdit={handleStartEditExpense} condoName={condoName} bankAccounts={bankAccounts} onDuplicate={handleStartDuplicateExpense} />}
           {currentView === 'add' && <ExpenseForm key={editingExpense ? editingExpense.id : 'new'} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} existingExpenses={expenses} initialData={editingExpense || undefined} onCancel={() => { setEditingExpense(null); setCurrentView('list'); }} bankAccounts={bankAccounts} />}
           {currentView === 'listIncome' && <IncomeList incomes={incomes} onDelete={handleDeleteIncome} onEdit={handleStartEditIncome} condoName={condoName} bankAccounts={bankAccounts} />}
