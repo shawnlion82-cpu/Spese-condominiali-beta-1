@@ -1,6 +1,5 @@
-
-import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Plus, LogOut, Building2, TrendingUp, List, DollarSign, Banknote, Moon, Sun } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { LayoutDashboard, Plus, LogOut, Building2, TrendingUp, List, DollarSign, Banknote, Moon, Sun, Globe } from 'lucide-react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { ExpenseForm } from './components/ExpenseForm';
@@ -11,6 +10,8 @@ import { BankAccountList } from './components/BankAccountList';
 import { BankAccountForm } from './components/BankAccountForm';
 import { Expense, Income, BankAccount } from './types';
 import { generateId } from './utils';
+import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
+import { Language } from './i18n/translations';
 
 const defaultExpenses: Expense[] = [
   { id: '1', description: 'Manutenzione Ascensore', amount: 450.00, date: '2023-10-15', category: 'Manutenzione', bankAccountId: 'acc1', status: 'paid' },
@@ -69,10 +70,13 @@ const NavButton: React.FC<NavButtonProps> = ({ active, onClick, icon, label, var
   );
 };
 
-export const App: React.FC = () => {
+const InnerApp: React.FC = () => {
+  const { t, language, setLanguage } = useLanguage();
   const [condoName, setCondoName] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [darkMode, setDarkMode] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
   
   // Expenses State
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -85,6 +89,19 @@ export const App: React.FC = () => {
   // Bank Accounts State
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [editingBankAccount, setEditingBankAccount] = useState<BankAccount | null>(null);
+
+  // Click outside listener for lang menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setShowLangMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Initialize Theme
   useEffect(() => {
@@ -280,8 +297,43 @@ export const App: React.FC = () => {
     setCurrentView(view);
   };
 
+  const languages: { code: Language, label: string, flag: string }[] = [
+    { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+    { code: 'es', label: 'Español', flag: '🇪🇸' },
+    { code: 'fr', label: 'Français', flag: '🇫🇷' },
+    { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  ];
+
   if (!condoName) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return (
+      <div className="relative">
+        <div className="absolute top-4 right-4 z-50" ref={langMenuRef}>
+           <button 
+              onClick={() => setShowLangMenu(!showLangMenu)}
+              className="p-2 text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors bg-white dark:bg-slate-800 rounded-full shadow-sm" 
+              title="Lingua / Language"
+            >
+              <Globe className="w-5 h-5" />
+            </button>
+            {showLangMenu && (
+              <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 py-1 overflow-hidden">
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => { setLanguage(lang.code); setShowLangMenu(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${language === lang.code ? 'text-indigo-600 dark:text-indigo-400 font-medium' : 'text-slate-700 dark:text-slate-300'}`}
+                  >
+                    <span>{lang.flag}</span>
+                    <span>{lang.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+        </div>
+        <LoginScreen onLogin={handleLogin} />
+      </div>
+    );
   }
 
   return (
@@ -292,21 +344,47 @@ export const App: React.FC = () => {
             <div className="bg-indigo-600 p-2 rounded-full shadow-sm">
               <Building2 className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white hidden sm:block">Spese Condominiali</h1>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white hidden sm:block">{t('login.title')}</h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 py-1.5 px-3 rounded-full border border-slate-200 dark:border-slate-600">
               <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <span className="font-medium truncate max-w-[150px] sm:max-w-xs" title={condoName}>{condoName}</span>
             </div>
+            
+            {/* Language Selector */}
+            <div className="relative" ref={langMenuRef}>
+              <button 
+                onClick={() => setShowLangMenu(!showLangMenu)}
+                className="p-2 text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors" 
+                title="Lingua / Language"
+              >
+                <Globe className="w-5 h-5" />
+              </button>
+              {showLangMenu && (
+                <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 py-1 overflow-hidden animate-fade-in z-50">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => { setLanguage(lang.code); setShowLangMenu(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${language === lang.code ? 'text-indigo-600 dark:text-indigo-400 font-medium' : 'text-slate-700 dark:text-slate-300'}`}
+                    >
+                      <span>{lang.flag}</span>
+                      <span>{lang.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button 
               onClick={toggleTheme} 
               className="p-2 text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors" 
-              title={darkMode ? "Modalità Chiara" : "Modalità Scura"}
+              title={darkMode ? t('nav.themeLight') : t('nav.themeDark')}
             >
               {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors" title="Cambia Condominio">
+            <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors" title={t('nav.logout')}>
               <LogOut className="w-5 h-5" />
             </button>
           </div>
@@ -316,14 +394,14 @@ export const App: React.FC = () => {
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 transition-colors duration-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
           <div className="flex gap-1 md:gap-2">
-            <NavButton active={currentView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20} />} label="Dashboard" />
-            <NavButton active={currentView === 'list'} onClick={() => handleNavClick('list')} icon={<List size={20} />} label="Lista Spese" />
-            <NavButton active={currentView === 'listIncome'} onClick={() => handleNavClick('listIncome')} icon={<TrendingUp size={20} />} label="Lista Incassi" />
-            <NavButton active={currentView === 'listBankAccounts'} onClick={() => handleNavClick('listBankAccounts')} icon={<Banknote size={20} />} label="Conti" />
+            <NavButton active={currentView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20} />} label={t('nav.dashboard')} />
+            <NavButton active={currentView === 'list'} onClick={() => handleNavClick('list')} icon={<List size={20} />} label={t('nav.expenses')} />
+            <NavButton active={currentView === 'listIncome'} onClick={() => handleNavClick('listIncome')} icon={<TrendingUp size={20} />} label={t('nav.incomes')} />
+            <NavButton active={currentView === 'listBankAccounts'} onClick={() => handleNavClick('listBankAccounts')} icon={<Banknote size={20} />} label={t('nav.accounts')} />
           </div>
           <div className="flex gap-2 md:gap-3">
-            <NavButton onClick={() => handleNavClick('add')} icon={<Plus size={20} />} label="Nuova Spesa" variant="primary" />
-            <NavButton onClick={() => handleNavClick('addIncome')} icon={<DollarSign size={20} />} label="Nuovo Incasso" variant="secondary" />
+            <NavButton onClick={() => handleNavClick('add')} icon={<Plus size={20} />} label={t('nav.newExpense')} variant="primary" />
+            <NavButton onClick={() => handleNavClick('addIncome')} icon={<DollarSign size={20} />} label={t('nav.newIncome')} variant="secondary" />
           </div>
         </div>
       </div>
@@ -342,3 +420,9 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
+export const App = () => (
+  <LanguageProvider>
+    <InnerApp />
+  </LanguageProvider>
+);
