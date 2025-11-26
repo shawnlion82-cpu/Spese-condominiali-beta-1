@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Plus, LogOut, Building2, TrendingUp, List, DollarSign, Banknote, Moon, Sun, Globe } from 'lucide-react';
+import { LayoutDashboard, Plus, LogOut, Building2, TrendingUp, List, DollarSign, Banknote, Moon, Sun, Globe, Loader2 } from 'lucide-react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { ExpenseForm } from './components/ExpenseForm';
@@ -12,6 +13,7 @@ import { Expense, Income, BankAccount } from './types';
 import { generateId } from './utils';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { Language } from './i18n/translations';
+import { get, set } from 'idb-keyval';
 
 const defaultExpenses: Expense[] = [
   { id: '1', description: 'Manutenzione Ascensore', amount: 450.00, date: '2023-10-15', category: 'Manutenzione', bankAccountId: 'acc1', status: 'paid' },
@@ -76,6 +78,7 @@ const InnerApp: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [darkMode, setDarkMode] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
   
   // Expenses State
@@ -147,59 +150,90 @@ const InnerApp: React.FC = () => {
     }
   }, []);
 
-  // Load data when condoName changes
+  // Load data from IndexedDB when condoName changes
   useEffect(() => {
-    if (condoName) {
-      // Load Expenses
-      try {
-        setExpenses(JSON.parse(localStorage.getItem(getStorageKey('expenses', condoName)) || JSON.stringify(defaultExpenses)));
-      } catch (e) { console.error(e); setExpenses([]); }
-      
-      // Load Incomes
-      try {
-        setIncomes(JSON.parse(localStorage.getItem(getStorageKey('incomes', condoName)) || JSON.stringify(defaultIncomes)));
-      } catch (e) { console.error(e); setIncomes([]); }
+    const loadData = async () => {
+      if (!condoName) {
+        setExpenses([]);
+        setIncomes([]);
+        setBankAccounts([]);
+        return;
+      }
 
-      // Load Bank Accounts
+      setIsLoading(true);
       try {
-        setBankAccounts(JSON.parse(localStorage.getItem(getStorageKey('bankAccounts', condoName)) || JSON.stringify(defaultBankAccounts)));
-      } catch (e) { console.error(e); setBankAccounts([]); }
-    } else {
-      setExpenses([]);
-      setIncomes([]);
-      setBankAccounts([]);
-    }
+        // Load Expenses
+        const expKey = getStorageKey('expenses', condoName);
+        let loadedExpenses = await get(expKey);
+        
+        // Migration from LocalStorage if IndexedDB is empty
+        if (!loadedExpenses) {
+          const local = localStorage.getItem(expKey);
+          if (local) {
+            try {
+              loadedExpenses = JSON.parse(local);
+              await set(expKey, loadedExpenses); // Save to IndexedDB
+            } catch (e) {
+              console.error("Migration error expenses", e);
+            }
+          }
+        }
+        setExpenses(loadedExpenses || JSON.parse(JSON.stringify(defaultExpenses)));
+
+        // Load Incomes
+        const incKey = getStorageKey('incomes', condoName);
+        let loadedIncomes = await get(incKey);
+        if (!loadedIncomes) {
+          const local = localStorage.getItem(incKey);
+          if (local) {
+             try {
+               loadedIncomes = JSON.parse(local);
+               await set(incKey, loadedIncomes);
+             } catch (e) {}
+          }
+        }
+        setIncomes(loadedIncomes || JSON.parse(JSON.stringify(defaultIncomes)));
+
+        // Load Bank Accounts
+        const bankKey = getStorageKey('bankAccounts', condoName);
+        let loadedAccounts = await get(bankKey);
+        if (!loadedAccounts) {
+           const local = localStorage.getItem(bankKey);
+           if (local) {
+              try {
+                loadedAccounts = JSON.parse(local);
+                await set(bankKey, loadedAccounts);
+              } catch (e) {}
+           }
+        }
+        setBankAccounts(loadedAccounts || JSON.parse(JSON.stringify(defaultBankAccounts)));
+
+      } catch (e) {
+        console.error("Error loading data", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
   }, [condoName]);
 
-  // Save data whenever it changes
+  // Save data to IndexedDB whenever it changes
   useEffect(() => {
-    if (condoName) {
-      try {
-        localStorage.setItem(getStorageKey('expenses', condoName), JSON.stringify(expenses));
-      } catch (e) {
-        console.error("Quota exceeded saving expenses", e);
-        alert("Attenzione: Spazio di archiviazione pieno. Impossibile salvare le spese. Riduci la dimensione degli allegati.");
-      }
+    if (condoName && expenses.length > 0) {
+      set(getStorageKey('expenses', condoName), expenses).catch(e => console.error("Error saving expenses", e));
     }
   }, [expenses, condoName]);
 
   useEffect(() => {
-    if (condoName) {
-      try {
-        localStorage.setItem(getStorageKey('incomes', condoName), JSON.stringify(incomes));
-      } catch (e) {
-        console.error("Quota exceeded saving incomes", e);
-      }
+    if (condoName && incomes.length > 0) {
+      set(getStorageKey('incomes', condoName), incomes).catch(e => console.error("Error saving incomes", e));
     }
   }, [incomes, condoName]);
 
   useEffect(() => {
-    if (condoName) {
-      try {
-        localStorage.setItem(getStorageKey('bankAccounts', condoName), JSON.stringify(bankAccounts));
-      } catch (e) {
-        console.error("Quota exceeded saving bank accounts", e);
-      }
+    if (condoName && bankAccounts.length > 0) {
+      set(getStorageKey('bankAccounts', condoName), bankAccounts).catch(e => console.error("Error saving bank accounts", e));
     }
   }, [bankAccounts, condoName]);
 
@@ -247,7 +281,7 @@ const InnerApp: React.FC = () => {
       id: generateId(),
       description: `${expense.description} (Copia)`,
       date: new Date().toISOString().split('T')[0],
-      attachments: [] // Do not copy attachments to save space
+      attachments: [] // Do not copy attachments to save space, user can add new ones
      };
      setEditingExpense(duplicatedExpense);
      setCurrentView('add');
@@ -332,6 +366,17 @@ const InnerApp: React.FC = () => {
             )}
         </div>
         <LoginScreen onLogin={handleLogin} />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+          <p className="text-slate-600 dark:text-slate-400">Caricamento dati in corso...</p>
+        </div>
       </div>
     );
   }
