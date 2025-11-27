@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Expense, ExpenseCategory, BankAccount, Attachment } from '../types';
 import { Search, Filter, X, Calendar, ChevronDown, Trash2, AlertTriangle, SquarePen, Paperclip, FileDown, Download, Eye } from 'lucide-react';
@@ -23,6 +24,7 @@ const categoryColors: Record<ExpenseCategory, string> = {
   [ExpenseCategory.COMPENSO_AMMINISTRATORE]: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   [ExpenseCategory.ASSICURAZIONE]: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   [ExpenseCategory.SPESE_BANCARIE]: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  [ExpenseCategory.BOLLETTINO_POSTALE]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
   [ExpenseCategory.LETTURA_ACQUA]: 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200',
   [ExpenseCategory.VARIE]: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
 };

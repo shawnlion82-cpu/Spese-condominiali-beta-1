@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { ExpenseCategory } from "../types";
 
@@ -48,12 +49,17 @@ export const parseExpenseWithGemini = async (input: string, files?: FileInput[])
     1. **Bollettini/Fatture Multiple**: Se ci sono più documenti distinti, crea una voce per ciascuno.
     2. **Divisione Richiesta**: Se l'utente chiede di dividere una spesa (es. "Dividi questa bolletta da 100€: 50% scale, 50% ascensore"), crea voci separate calcolando gli importi corretti.
     3. **Singola Spesa**: Se è un unico documento senza istruzioni di divisione, restituisci una singola voce nell'array.
+    
+    REGOLA SPECIALE BOLLETTINO POSTALE:
+    - Se analizzi un bollettino postale e rilevi sia l'importo principale (es. utenza) che la **commissione del bollettino** (es. €1,50 o €2,00), DEVI creare due voci separate:
+      1. La spesa principale (Categoria appropriata, es. Utenze).
+      2. La commissione (Descrizione: "Commissione Bollettino Postale", Categoria: 'Bollettino Postale').
 
     REGOLE PER I CAMPI:
     - **Importo**: Usa il numero esatto (virgola o punto decimale).
     - **Data**: Usa la data del documento o di scadenza. Se assente, usa ${currentDate}.
     - **Descrizione**: Sii preciso (es. "Bolletta Enel Luce Scale", "Riparazione Tubo"). Se stai dividendo, specifica (es. "Luce Scale (Quota 50%)").
-    - **Categoria**: Scegli tra: 'Manutenzione', 'Utenze', 'Pulizia', 'Pulizia Scale', 'Amministrazione', 'Compenso Amministratore', 'Assicurazione', 'Spese Bancarie', 'Lettura Acqua', 'Varie'.
+    - **Categoria**: Scegli tra: 'Manutenzione', 'Utenze', 'Pulizia', 'Pulizia Scale', 'Amministrazione', 'Compenso Amministratore', 'Assicurazione', 'Spese Bancarie', 'Bollettino Postale', 'Lettura Acqua', 'Varie'.
 
     Output atteso: Un oggetto JSON contenente un array 'expenses'.
   `;
@@ -75,7 +81,7 @@ export const parseExpenseWithGemini = async (input: string, files?: FileInput[])
 
     // Add text part
     parts.push({
-      text: input || "Analizza i documenti allegati. Se è un bollettino o una fattura, estrai i dati. Se richiesto, dividi le spese."
+      text: input || "Analizza i documenti allegati. Se è un bollettino o una fattura, estrai i dati. Se richiesto, dividi le spese o separa il costo del bollettino."
     });
 
     const response = await ai.models.generateContent({

@@ -45,6 +45,7 @@ export enum ExpenseCategory {
   COMPENSO_AMMINISTRATORE = 'Compenso Amministratore',
   ASSICURAZIONE = 'Assicurazione',
   SPESE_BANCARIE = 'Spese Bancarie',
+  BOLLETTINO_POSTALE = 'Bollettino Postale',
   LETTURA_ACQUA = 'Lettura Acqua',
   VARIE = 'Varie',
 }
