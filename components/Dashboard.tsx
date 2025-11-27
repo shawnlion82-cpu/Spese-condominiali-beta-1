@@ -97,27 +97,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
   }, [yearlyExpenses]);
 
   const monthlyData = useMemo(() => {
-    const monthsMap = new Map<number, number>();
-    for (let i = 0; i < 12; i++) monthsMap.set(i, 0);
+    const expensesMap = new Map<number, number>();
+    const incomesMap = new Map<number, number>();
+    
+    // Initialize
+    for (let i = 0; i < 12; i++) {
+        expensesMap.set(i, 0);
+        incomesMap.set(i, 0);
+    }
 
+    // Fill Expenses
     yearlyExpenses.forEach(e => {
       const month = new Date(e.date).getMonth();
-      monthsMap.set(month, (monthsMap.get(month) || 0) + e.amount);
+      expensesMap.set(month, (expensesMap.get(month) || 0) + e.amount);
     });
 
-    return Array.from(monthsMap.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([monthIndex, value]) => {
+    // Fill Incomes
+    yearlyIncomes.forEach(i => {
+      const month = new Date(i.date).getMonth();
+      incomesMap.set(month, (incomesMap.get(month) || 0) + i.amount);
+    });
+
+    return Array.from(expensesMap.keys())
+      .sort((a, b) => a - b)
+      .map((monthIndex) => {
         const dateObj = new Date(selectedYear, monthIndex);
         const locale = language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language);
         const label = dateObj.toLocaleDateString(locale, { month: 'short' });
         return {
           name: label.charAt(0).toUpperCase() + label.slice(1),
           monthIndex,
-          value: value
+          expense: expensesMap.get(monthIndex) || 0,
+          income: incomesMap.get(monthIndex) || 0
         };
       });
-  }, [yearlyExpenses, selectedYear, language]);
+  }, [yearlyExpenses, yearlyIncomes, selectedYear, language]);
 
   const formatCurrency = (val: number) => {
     const locale = language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language);
@@ -482,7 +496,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
                   formatter={(value: number) => formatCurrency(value)}
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: '#1e293b', color: '#fff' }}
                 />
-                <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} />
+                <Legend />
+                <Bar dataKey="income" name={t('dashboard.totalIncome')} fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="expense" name={t('dashboard.totalExpenses')} fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
