@@ -18,11 +18,15 @@ const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 const MODEL_NAME = 'gemini-2.5-flash';
 
-interface ParsedExpenseData {
+export interface ParsedExpenseData {
   description: string;
   amount: number;
   category: ExpenseCategory;
   date: string;
+}
+
+export interface ExpenseAnalysisResult {
+  expenses: ParsedExpenseData[];
 }
 
 export interface FileInput {
@@ -30,45 +34,28 @@ export interface FileInput {
   mimeType: string;
 }
 
-export const parseExpenseWithGemini = async (input: string, files?: FileInput[]): Promise<ParsedExpenseData> => {
+export const parseExpenseWithGemini = async (input: string, files?: FileInput[]): Promise<ExpenseAnalysisResult> => {
   const currentDate = new Date().toISOString().split('T')[0];
   
   const systemPrompt = `
-    Sei un assistente contabile intelligente per condomini.
-    Il tuo compito è analizzare un testo in linguaggio naturale (italiano) E/O uno o più file allegati (immagini di ricevute, fatture PDF, documenti, ecc.).
-    
-    OBIETTIVO PRINCIPALE:
-    Estrai un singolo record di spesa aggregato. Se sono presenti multipli file o ricevute, SOMMA GLI IMPORTI per calcolare il totale.
+    Sei un assistente contabile esperto per condomini.
+    Analizza il testo e/o i file allegati (Fatture, Bollettini Postali, Scontrini).
 
-    Regole:
-    1. CALCOLO IMPORTO: 
-       - Identifica l'importo totale di ogni singolo documento/ricevuta allegata.
-       - Somma tutti gli importi trovati.
-       - Restituisci la somma totale come 'amount'.
+    OBIETTIVO:
+    Estrai una o più voci di spesa. 
     
-    2. DATA:
-       - Usa la data del documento più recente.
-       - Se non visibile, usa la data odierna: ${currentDate}.
-    
-    3. DESCRIZIONE:
-       - Se è un singolo documento: descrizione sintetica (es. "Fattura Enel", "Riparazione Luce").
-       - Se sono più documenti: usa una descrizione riepilogativa (es. "Riepilogo Spese Manutenzione", "Totale fatture fornitori diversi") indicando magari il numero di documenti.
-       - Max 50 caratteri.
+    LOGICA DI DIVISIONE E ESTRAZIONE MULTIPLA:
+    1. **Bollettini/Fatture Multiple**: Se ci sono più documenti distinti, crea una voce per ciascuno.
+    2. **Divisione Richiesta**: Se l'utente chiede di dividere una spesa (es. "Dividi questa bolletta da 100€: 50% scale, 50% ascensore"), crea voci separate calcolando gli importi corretti.
+    3. **Singola Spesa**: Se è un unico documento senza istruzioni di divisione, restituisci una singola voce nell'array.
 
-    4. CATEGORIA:
-       - Normalizza in una delle seguenti (scegli la più rappresentativa per l'insieme): 
-       - 'Manutenzione'
-       - 'Utenze'
-       - 'Pulizia'
-       - 'Pulizia Scale'
-       - 'Amministrazione'
-       - 'Compenso Amministratore'
-       - 'Assicurazione'
-       - 'Spese Bancarie'
-       - 'Lettura Acqua'
-       - 'Varie'
+    REGOLE PER I CAMPI:
+    - **Importo**: Usa il numero esatto (virgola o punto decimale).
+    - **Data**: Usa la data del documento o di scadenza. Se assente, usa ${currentDate}.
+    - **Descrizione**: Sii preciso (es. "Bolletta Enel Luce Scale", "Riparazione Tubo"). Se stai dividendo, specifica (es. "Luce Scale (Quota 50%)").
+    - **Categoria**: Scegli tra: 'Manutenzione', 'Utenze', 'Pulizia', 'Pulizia Scale', 'Amministrazione', 'Compenso Amministratore', 'Assicurazione', 'Spese Bancarie', 'Lettura Acqua', 'Varie'.
 
-    5. Se l'utente non specifica una valuta, assumi Euro.
+    Output atteso: Un oggetto JSON contenente un array 'expenses'.
   `;
 
   try {
@@ -86,9 +73,9 @@ export const parseExpenseWithGemini = async (input: string, files?: FileInput[])
       });
     }
 
-    // Add text part (even if empty, though UI should prevent empty submission)
+    // Add text part
     parts.push({
-      text: input || "Analizza questi documenti, somma gli importi se ce ne sono multipli, ed estrai i dati di spesa complessivi."
+      text: input || "Analizza i documenti allegati. Se è un bollettino o una fattura, estrai i dati. Se richiesto, dividi le spese."
     });
 
     const response = await ai.models.generateContent({
@@ -102,37 +89,55 @@ export const parseExpenseWithGemini = async (input: string, files?: FileInput[])
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            description: { 
-              type: Type.STRING,
-              description: "Una descrizione breve e chiara della spesa." 
-            },
-            amount: { 
-              type: Type.NUMBER,
-              description: "L'importo totale della spesa (somma di tutti i documenti)." 
-            },
-            category: { 
-              type: Type.STRING,
-              enum: Object.values(ExpenseCategory),
-              description: "La categoria della spesa."
-            },
-            date: { 
-              type: Type.STRING,
-              description: "La data della spesa nel formato YYYY-MM-DD." 
+            expenses: {
+              type: Type.ARRAY,
+              description: "Lista delle spese estratte o divise.",
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  description: { 
+                    type: Type.STRING,
+                    description: "Descrizione della spesa." 
+                  },
+                  amount: { 
+                    type: Type.NUMBER,
+                    description: "Importo della singola voce." 
+                  },
+                  category: { 
+                    type: Type.STRING,
+                    enum: Object.values(ExpenseCategory),
+                    description: "Categoria della spesa."
+                  },
+                  date: { 
+                    type: Type.STRING,
+                    description: "Data (YYYY-MM-DD)." 
+                  }
+                },
+                required: ["description", "amount", "category", "date"]
+              }
             }
-          },
-          required: ["description", "amount", "category", "date"]
+          }
         }
       }
     });
 
     if (response.text) {
-      const data = JSON.parse(response.text) as ParsedExpenseData;
+      const data = JSON.parse(response.text) as ExpenseAnalysisResult;
+      // Ensure we always return an array, even if the model hallucinates a different structure (fallback)
+      if (!data.expenses || !Array.isArray(data.expenses)) {
+         // Fallback attempt if structure is wrong but has single fields
+         const single = data as any;
+         if (single.amount && single.description) {
+            return { expenses: [single as ParsedExpenseData] };
+         }
+         return { expenses: [] };
+      }
       return data;
     } else {
       throw new Error("Nessun dato generato dal modello.");
     }
   } catch (error) {
     console.error("Errore durante l'analisi Gemini:", error);
-    throw new Error("Impossibile interpretare la spesa. Riprova con una descrizione più chiara o documenti leggibili.");
+    throw new Error("Impossibile interpretare la spesa. Riprova con documenti più leggibili.");
   }
 };
