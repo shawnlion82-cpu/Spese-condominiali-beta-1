@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, Plus, LogOut, Building2, TrendingUp, List, DollarSign, Banknote, Moon, Sun, Globe, Loader2, PieChart } from 'lucide-react';
 import { LoginScreen } from './components/LoginScreen';
@@ -261,7 +262,7 @@ const InnerApp: React.FC = () => {
   // Expense Handlers
   const handleAddExpense = (expense: Expense) => {
     setExpenses(prev => [expense, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    setCurrentView('list');
+    if(currentView !== 'list') setCurrentView('list');
   };
   const handleStartEditExpense = (expense: Expense) => {
     setEditingExpense(expense);
@@ -292,7 +293,7 @@ const InnerApp: React.FC = () => {
   // Income Handlers
   const handleAddIncome = (income: Income) => {
     setIncomes(prev => [income, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    setCurrentView('listIncome');
+    if(currentView !== 'listIncome') setCurrentView('listIncome');
   };
   const handleStartEditIncome = (income: Income) => {
     setEditingIncome(income);
@@ -456,21 +457,23 @@ const InnerApp: React.FC = () => {
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-fade-in">
           {currentView === 'dashboard' && <Dashboard expenses={expenses} incomes={incomes} bankAccounts={bankAccounts} condoName={condoName} />}
-          {currentView === 'list' && <ExpenseList expenses={expenses} onDelete={handleDeleteExpense} onEdit={handleStartEditExpense} condoName={condoName} bankAccounts={bankAccounts} onDuplicate={handleStartDuplicateExpense} />}
+          {currentView === 'list' && <ExpenseList expenses={expenses} onDelete={handleDeleteExpense} onEdit={handleStartEditExpense} condoName={condoName} bankAccounts={bankAccounts} onDuplicate={handleStartDuplicateExpense} onAdd={handleAddExpense} />}
           {currentView === 'add' && <ExpenseForm key={editingExpense ? editingExpense.id : 'new'} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} existingExpenses={expenses} initialData={editingExpense || undefined} onCancel={() => { setEditingExpense(null); setCurrentView('list'); }} bankAccounts={bankAccounts} />}
-          {currentView === 'listIncome' && <IncomeList incomes={incomes} onDelete={handleDeleteIncome} onEdit={handleStartEditIncome} condoName={condoName} bankAccounts={bankAccounts} />}
+          {currentView === 'listIncome' && <IncomeList incomes={incomes} onDelete={handleDeleteIncome} onEdit={handleStartEditIncome} condoName={condoName} bankAccounts={bankAccounts} onAdd={handleAddIncome} />}
           {currentView === 'addIncome' && <IncomeForm key={editingIncome ? editingIncome.id : 'new'} onAdd={handleAddIncome} onUpdate={handleUpdateIncome} initialData={editingIncome || undefined} onCancel={() => { setEditingIncome(null); setCurrentView('listIncome'); }} />}
           {currentView === 'listBankAccounts' && <BankAccountList bankAccounts={bankAccounts} onDelete={handleDeleteBankAccount} onEdit={handleStartEditBankAccount} expenses={expenses} incomes={incomes} />}
           {currentView === 'addBankAccount' && <BankAccountForm key={editingBankAccount ? editingBankAccount.id : 'new'} onAdd={handleAddBankAccount} onUpdate={handleUpdateBankAccount} initialData={editingBankAccount || undefined} onCancel={() => { setEditingBankAccount(null); setCurrentView('listBankAccounts'); }} />}
-          {currentView === 'reports' && <ReportView expenses={expenses} condoName={condoName} />}
+          {currentView === 'reports' && <ReportView expenses={expenses} incomes={incomes} condoName={condoName} />}
         </div>
       </main>
     </div>
   );
 };
 
-export const App = () => (
-  <LanguageProvider>
-    <InnerApp />
-  </LanguageProvider>
-);
+export const App: React.FC = () => {
+  return (
+    <LanguageProvider>
+      <InnerApp />
+    </LanguageProvider>
+  );
+};

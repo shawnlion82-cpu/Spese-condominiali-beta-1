@@ -1,11 +1,15 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Income, IncomeCategory, BankAccount } from '../types';
-import { Search, Filter, X, Calendar, ChevronDown, Trash2, AlertTriangle, Pencil, FileDown, FileText, FileCode } from 'lucide-react';
+import { Search, Filter, X, Calendar, ChevronDown, Trash2, AlertTriangle, Pencil, FileDown, FileText, FileCode, FileUp, Loader2, Check } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
+import { parseIncomeWithGemini, ParsedIncomeData } from '../services/geminiService';
+import { generateId } from '../utils';
+import mammoth from 'mammoth';
 
 interface IncomeListProps {
   incomes: Income[];
@@ -13,6 +17,7 @@ interface IncomeListProps {
   onEdit: (income: Income) => void;
   condoName: string;
   bankAccounts: BankAccount[];
+  onAdd: (income: Income) => void;
 }
 
 const categoryColors: Record<IncomeCategory, string> = {
@@ -22,7 +27,7 @@ const categoryColors: Record<IncomeCategory, string> = {
   [IncomeCategory.ALTRO]: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
 };
 
-export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdit, condoName }) => {
+export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdit, condoName, onAdd }) => {
   const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -33,6 +38,12 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
   
   const [incomeToDelete, setIncomeToDelete] = useState<string | null>(null);
   
+  // Import State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importCandidates, setImportCandidates] = useState<ParsedIncomeData[]>([]);
+  const [showImportReview, setShowImportReview] = useState(false);
+
   // Export Menu State
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -78,6 +89,98 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
   });
 
   const filteredTotal = filteredIncomes.reduce((sum, i) => sum + i.amount, 0);
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const file = e.target.files[0];
+    setIsImporting(true);
+    setImportCandidates([]);
+
+    try {
+      if (file.name.endsWith('.xml')) {
+        const text = await file.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, "text/xml");
+        const items = xmlDoc.getElementsByTagName("income");
+        
+        let count = 0;
+        Array.from(items).forEach(item => {
+           const id = item.getElementsByTagName("id")[0]?.textContent || generateId();
+           const desc = item.getElementsByTagName("description")[0]?.textContent || "";
+           const amount = parseFloat(item.getElementsByTagName("amount")[0]?.textContent || "0");
+           const cat = item.getElementsByTagName("category")[0]?.textContent as IncomeCategory || IncomeCategory.QUOTE;
+           const date = item.getElementsByTagName("date")[0]?.textContent || new Date().toISOString().split('T')[0];
+           
+           if (desc && amount > 0) {
+             onAdd({
+               id, description: desc, amount, category: cat, date
+             });
+             count++;
+           }
+        });
+        alert(t('list.importSuccess').replace('{count}', count.toString()));
+
+      } else if (file.name.endsWith('.pdf') || file.name.endsWith('.docx')) {
+         
+         let textContent = '';
+         let fileInputData: {data: string, mimeType: string} | undefined = undefined;
+
+         if (file.name.endsWith('.docx')) {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            textContent = result.value;
+         } else {
+            // PDF
+            const base64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.readAsDataURL(file);
+              reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            });
+            fileInputData = { data: base64, mimeType: 'application/pdf' };
+         }
+
+         const result = await parseIncomeWithGemini(textContent, fileInputData ? [fileInputData] : undefined);
+         
+         if (result.incomes.length > 0) {
+            setImportCandidates(result.incomes);
+            setShowImportReview(true);
+         } else {
+            alert(t('list.noDataImport'));
+         }
+      }
+
+    } catch (error) {
+      console.error(error);
+      alert(t('list.importError').replace('{error}', (error as Error).message));
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSaveImportCandidates = () => {
+    importCandidates.forEach(cand => {
+       onAdd({
+         id: generateId(),
+         description: cand.description,
+         amount: Number(cand.amount),
+         date: cand.date,
+         category: cand.category,
+       });
+    });
+    setShowImportReview(false);
+    setImportCandidates([]);
+  };
+
+  const updateCandidate = (index: number, field: keyof ParsedIncomeData, value: any) => {
+    setImportCandidates(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+  
+  const removeCandidate = (index: number) => {
+    setImportCandidates(prev => prev.filter((_, i) => i !== index));
+    if (importCandidates.length <= 1) setShowImportReview(false);
+  };
 
   const handleExportCSV = () => {
     if (filteredIncomes.length === 0) return;
@@ -283,6 +386,23 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
                 {activeFiltersCount > 0 && <span className="bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>}
               </button>
               
+               {/* Import Button */}
+               <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".xml,.pdf,.docx" 
+                onChange={handleImportFile} 
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+                className="p-2 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors flex items-center justify-center gap-2"
+                title={t('list.importDesc')}
+              >
+                 {isImporting ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+              </button>
+
                {/* Export Dropdown */}
               <div className="relative" ref={exportMenuRef}>
                  <button
@@ -409,6 +529,55 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
               <button onClick={executeDelete} type="button" className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700">Elimina</button>
               <button onClick={() => setIncomeToDelete(null)} type="button" className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-slate-600 shadow-sm px-4 py-2 bg-white dark:bg-slate-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 sm:mt-0">Annulla</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showImportReview && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-3xl w-full p-6 border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+             <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+               <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('list.reviewImport')}</h3>
+               <button onClick={() => setShowImportReview(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                 <X size={20} />
+               </button>
+             </div>
+             
+             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                {importCandidates.map((inc, idx) => (
+                  <div key={idx} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl border border-slate-200 dark:border-slate-600 relative grid grid-cols-1 sm:grid-cols-12 gap-3">
+                     <button onClick={() => removeCandidate(idx)} className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500"><X size={16} /></button>
+                     <div className="sm:col-span-5">
+                       <label className="text-[10px] text-slate-500 uppercase block">Descrizione</label>
+                       <input type="text" value={inc.description} onChange={(e) => updateCandidate(idx, 'description', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-indigo-500" />
+                     </div>
+                     <div className="sm:col-span-2">
+                       <label className="text-[10px] text-slate-500 uppercase block">Importo</label>
+                       <input type="number" step="0.01" value={inc.amount} onChange={(e) => updateCandidate(idx, 'amount', parseFloat(e.target.value))} className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-indigo-500" />
+                     </div>
+                     <div className="sm:col-span-3">
+                       <label className="text-[10px] text-slate-500 uppercase block">Categoria</label>
+                       <select value={inc.category} onChange={(e) => updateCandidate(idx, 'category', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-indigo-500">
+                          {Object.values(IncomeCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                       </select>
+                     </div>
+                     <div className="sm:col-span-2">
+                       <label className="text-[10px] text-slate-500 uppercase block">Data</label>
+                       <input type="date" value={inc.date} onChange={(e) => updateCandidate(idx, 'date', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-indigo-500" />
+                     </div>
+                  </div>
+                ))}
+             </div>
+
+             <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+               <button onClick={() => setShowImportReview(false)} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700">
+                 {t('common.cancel')}
+               </button>
+               <button onClick={handleSaveImportCandidates} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center gap-2">
+                 <Check size={16} />
+                 {t('list.saveAll')} ({importCandidates.length})
+               </button>
+             </div>
           </div>
         </div>
       )}

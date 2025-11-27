@@ -1,15 +1,17 @@
 
 import React, { useMemo, useState } from 'react';
-import { Expense } from '../types';
-import { CalendarRange, Layers, Calendar, ChevronDown, PieChart } from 'lucide-react';
+import { Expense, Income } from '../types';
+import { CalendarRange, Layers, Calendar, ChevronDown, PieChart, TrendingUp, TrendingDown } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface ReportViewProps {
   expenses: Expense[];
+  incomes: Income[];
   condoName: string;
 }
 
 type GroupMode = 'month' | 'category';
+type DataType = 'expenses' | 'incomes';
 
 interface GroupedData {
   key: string;
@@ -22,23 +24,34 @@ interface GroupedData {
   }[];
 }
 
-export const ReportView: React.FC<ReportViewProps> = ({ expenses, condoName }) => {
+export const ReportView: React.FC<ReportViewProps> = ({ expenses, incomes, condoName }) => {
   const { t, language } = useLanguage();
   
+  const [dataType, setDataType] = useState<DataType>('expenses');
+  const [groupMode, setGroupMode] = useState<GroupMode>('month');
+
+  const activeData = dataType === 'expenses' ? expenses : incomes;
+
   const allYears = useMemo(() => {
-    const expenseYears = expenses.map(e => new Date(e.date).getFullYear());
-    const years = new Set<number>([...expenseYears]);
+    const years = new Set<number>();
+    activeData.forEach(item => years.add(new Date(item.date).getFullYear()));
     const currentYear = new Date().getFullYear();
     years.add(currentYear);
     return Array.from(years).sort((a, b) => b - a);
-  }, [expenses]);
+  }, [activeData]);
 
   const [selectedYear, setSelectedYear] = useState<number>(allYears[0]);
-  const [groupMode, setGroupMode] = useState<GroupMode>('month');
 
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter(e => new Date(e.date).getFullYear() === selectedYear);
-  }, [expenses, selectedYear]);
+  // Ensure selectedYear is valid when switching data types
+  React.useEffect(() => {
+    if (!allYears.includes(selectedYear)) {
+        setSelectedYear(allYears[0]);
+    }
+  }, [allYears, selectedYear]);
+
+  const filteredData = useMemo(() => {
+    return activeData.filter(e => new Date(e.date).getFullYear() === selectedYear);
+  }, [activeData, selectedYear]);
 
   const groupedData = useMemo<GroupedData[]>(() => {
     const data: GroupedData[] = [];
@@ -48,7 +61,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ expenses, condoName }) =
       // Initialize all months
       const monthsMap = new Map<number, { total: number, subs: Map<string, number>, subCounts: Map<string, number> }>();
       
-      filteredExpenses.forEach(e => {
+      filteredData.forEach(e => {
         const month = new Date(e.date).getMonth();
         const cat = e.category;
         
@@ -62,8 +75,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ expenses, condoName }) =
         monthData.subCounts.set(cat, (monthData.subCounts.get(cat) || 0) + 1);
       });
 
-      // Sort by month index descending (latest first)
-      const sortedMonths = Array.from(monthsMap.keys()).sort((a, b) => b - a);
+      // Sort by month index Ascending (Jan -> Dec)
+      const sortedMonths = Array.from(monthsMap.keys()).sort((a, b) => a - b);
       
       sortedMonths.forEach(monthIdx => {
         const d = monthsMap.get(monthIdx)!;
@@ -88,7 +101,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ expenses, condoName }) =
       // Group by Category
       const catMap = new Map<string, { total: number, subs: Map<number, number>, subCounts: Map<number, number> }>();
 
-      filteredExpenses.forEach(e => {
+      filteredData.forEach(e => {
         const cat = e.category;
         const month = new Date(e.date).getMonth();
 
@@ -128,7 +141,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ expenses, condoName }) =
     }
 
     return data;
-  }, [filteredExpenses, groupMode, language, selectedYear]);
+  }, [filteredData, groupMode, language, selectedYear]);
 
   const formatCurrency = (val: number) => {
     const locale = language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language);
@@ -164,29 +177,58 @@ export const ReportView: React.FC<ReportViewProps> = ({ expenses, condoName }) =
           </div>
         </div>
 
-        <div className="flex gap-2 mt-6 p-1 bg-slate-100 dark:bg-slate-700/50 rounded-lg w-fit">
-          <button
-            onClick={() => setGroupMode('month')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              groupMode === 'month' 
-                ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-300 shadow-sm' 
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
-          >
-            <Calendar size={16} />
-            {t('reports.groupByMonth')}
-          </button>
-          <button
-            onClick={() => setGroupMode('category')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              groupMode === 'category' 
-                ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-300 shadow-sm' 
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
-          >
-            <Layers size={16} />
-            {t('reports.groupByCategory')}
-          </button>
+        <div className="flex flex-col sm:flex-row gap-4 mt-6">
+          {/* Expenses / Incomes Toggle */}
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-700/50 rounded-lg w-fit">
+            <button
+                onClick={() => setDataType('expenses')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                dataType === 'expenses' 
+                    ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+            >
+                <TrendingDown size={16} />
+                {t('reports.typeExpenses')}
+            </button>
+            <button
+                onClick={() => setDataType('incomes')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                dataType === 'incomes' 
+                    ? 'bg-white dark:bg-slate-600 text-green-600 dark:text-green-400 shadow-sm' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+            >
+                <TrendingUp size={16} />
+                {t('reports.typeIncomes')}
+            </button>
+          </div>
+
+          {/* Grouping Toggle */}
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-700/50 rounded-lg w-fit">
+            <button
+                onClick={() => setGroupMode('month')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                groupMode === 'month' 
+                    ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-300 shadow-sm' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+            >
+                <Calendar size={16} />
+                {t('reports.groupByMonth')}
+            </button>
+            <button
+                onClick={() => setGroupMode('category')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                groupMode === 'category' 
+                    ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-300 shadow-sm' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+            >
+                <Layers size={16} />
+                {t('reports.groupByCategory')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -195,9 +237,9 @@ export const ReportView: React.FC<ReportViewProps> = ({ expenses, condoName }) =
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {groupedData.map((group) => (
               <div key={group.key} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
-                <div className="p-4 bg-slate-50 dark:bg-slate-700/30 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <div className={`p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center ${dataType === 'expenses' ? 'bg-red-50 dark:bg-red-900/10' : 'bg-green-50 dark:bg-green-900/10'}`}>
                   <h3 className="font-bold text-slate-800 dark:text-slate-200">{group.label}</h3>
-                  <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-2 py-1 rounded text-xs font-bold">
+                  <span className={`px-2 py-1 rounded text-xs font-bold ${dataType === 'expenses' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
                     {formatCurrency(group.total)}
                   </span>
                 </div>
