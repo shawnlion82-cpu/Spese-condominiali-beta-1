@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Expense, ExpenseCategory, BankAccount, Attachment } from '../types';
 import { Search, Filter, X, Calendar, ChevronDown, Trash2, AlertTriangle, SquarePen, Paperclip, FileDown, Download, Eye, FileText, FileCode, FileUp, Loader2, Check } from 'lucide-react';
@@ -19,19 +18,20 @@ interface ExpenseListProps {
   bankAccounts: BankAccount[];
   onDuplicate: (expense: Expense) => void;
   onAdd: (expense: Expense) => void;
+  onClearAll: () => void;
 }
 
 const categoryColors: Record<ExpenseCategory, string> = {
   [ExpenseCategory.MANUTENZIONE]: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
   [ExpenseCategory.UTENZE]: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  [ExpenseCategory.PULIZIA]: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
-  [ExpenseCategory.PULIZIA_SCALE]: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
-  [ExpenseCategory.AMMINISTRAZIONE]: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  [ExpenseCategory.PULIZIA]: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+  [ExpenseCategory.PULIZIA_SCALE]: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  [ExpenseCategory.AMMINISTRAZIONE]: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
   [ExpenseCategory.COMPENSO_AMMINISTRATORE]: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  [ExpenseCategory.ASSICURAZIONE]: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  [ExpenseCategory.SPESE_BANCARIE]: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-  [ExpenseCategory.BOLLETTINO_POSTALE]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-  [ExpenseCategory.LETTURA_ACQUA]: 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200',
+  [ExpenseCategory.ASSICURAZIONE]: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+  [ExpenseCategory.SPESE_BANCARIE]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  [ExpenseCategory.BOLLETTINO_POSTALE]: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  [ExpenseCategory.LETTURA_ACQUA]: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
   [ExpenseCategory.VARIE]: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
 };
 
@@ -75,7 +75,7 @@ const AttachmentPreviewModal: React.FC<{ attachments: Attachment[], onClose: () 
 };
 
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, onEdit, condoName, bankAccounts, onDuplicate, onAdd }) => {
+export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, onEdit, condoName, bankAccounts, onDuplicate, onAdd, onClearAll }) => {
   const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -87,6 +87,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, on
   const [paymentStatus, setPaymentStatus] = useState<string>('');
 
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [viewingAttachments, setViewingAttachments] = useState<Attachment[] | null>(null);
   
   // Import State
@@ -133,6 +134,11 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, on
       onDelete(expenseToDelete);
       setExpenseToDelete(null);
     }
+  };
+  
+  const executeClearAll = () => {
+    onClearAll();
+    setShowDeleteAllConfirm(false);
   };
   
   const filteredExpenses = useMemo(() => expenses.filter(e => {
@@ -523,39 +529,54 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, on
                     </div>
                  )}
               </div>
+              
+              {/* Delete All Button */}
+              <button 
+                onClick={() => setShowDeleteAllConfirm(true)}
+                className="p-2 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg transition-colors flex items-center justify-center gap-2"
+                title={t('list.deleteAll')}
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
 
           {showFilters && (
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-700 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 animate-fade-in">
               {/* Date Filters */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Dal</label>
-                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"/>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Al</label>
-                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"/>
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Dal</label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"/>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Al</label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"/>
               </div>
 
               {/* Select Filters */}
-              <div className="grid grid-cols-2 gap-2">
-                 <div>
-                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Categoria</label>
-                    <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none appearance-none">
-                      <option value="">Tutte</option>
-                      {Object.values(ExpenseCategory).map((cat) => (<option key={cat} value={cat}>{cat}</option>))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Conto Corrente</label>
-                    <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none appearance-none">
-                      <option value="">Tutti i conti</option>
-                      {bankAccounts.map((acc) => (<option key={acc.id} value={acc.id}>{acc.name}</option>))}
-                    </select>
-                  </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Categoria</label>
+                <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none appearance-none">
+                  <option value="">Tutte</option>
+                  {Object.values(ExpenseCategory).map((cat) => (<option key={cat} value={cat}>{cat}</option>))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">{t('list.colStatus')}</label>
+                <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none appearance-none">
+                  <option value="">Tutti</option>
+                  <option value="paid">{t('common.paid')}</option>
+                  <option value="unpaid">{t('common.unpaid')}</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Conto Corrente</label>
+                <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} className="w-full py-2 px-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none appearance-none">
+                  <option value="">Tutti i conti</option>
+                  {bankAccounts.map((acc) => (<option key={acc.id} value={acc.id}>{acc.name}</option>))}
+                </select>
               </div>
               
               {/* Reset Button */}
@@ -655,6 +676,22 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, on
             <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
               <button onClick={executeDelete} type="button" className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700">{t('common.delete')}</button>
               <button onClick={() => setExpenseToDelete(null)} type="button" className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-slate-600 shadow-sm px-4 py-2 bg-white dark:bg-slate-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 sm:mt-0">{t('common.cancel')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteAllConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30"><Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" /></div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mt-3">{t('list.deleteAll')}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{t('list.confirmDeleteAllMsg')}</p>
+            </div>
+            <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+              <button onClick={executeClearAll} type="button" className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700">{t('list.deleteAll')}</button>
+              <button onClick={() => setShowDeleteAllConfirm(false)} type="button" className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-slate-600 shadow-sm px-4 py-2 bg-white dark:bg-slate-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 sm:mt-0">{t('common.cancel')}</button>
             </div>
           </div>
         </div>

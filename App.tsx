@@ -17,24 +17,10 @@ import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { Language } from './i18n/translations';
 import { get, set } from 'idb-keyval';
 
-const defaultExpenses: Expense[] = [
-  { id: '1', description: 'Manutenzione Ascensore', amount: 450.00, date: '2023-10-15', category: 'Manutenzione', bankAccountId: 'acc1', status: 'paid' },
-  { id: '2', description: 'Bolletta Luce Scale', amount: 125.50, date: '2023-10-20', category: 'Utenze', bankAccountId: 'acc1', status: 'paid' },
-  { id: '3', description: 'Pulizia Parti Comuni', amount: 300.00, date: '2023-11-01', category: 'Pulizia', bankAccountId: 'acc1', status: 'unpaid' },
-  { id: '4', description: 'Sostituzione Lampadine', amount: 45.90, date: '2023-11-05', category: 'Manutenzione', bankAccountId: 'acc2', status: 'paid' },
-  { id: '5', description: 'Spese Annuali', amount: 500.00, date: '2023-11-15', category: 'Amministrazione', bankAccountId: 'acc1', status: 'unpaid' },
-];
-
-const defaultIncomes: Income[] = [
-  { id: 'inc1', description: 'Quota Condominiale - Rossi', amount: 550.00, date: '2023-10-05', category: 'Quote Condominiali', bankAccountId: 'acc1' },
-  { id: 'inc2', description: 'Quota Condominiale - Bianchi', amount: 550.00, date: '2023-10-05', category: 'Quote Condominiali', bankAccountId: 'acc1' },
-  { id: 'inc3', description: 'Affitto Lastrico Solare', amount: 1200.00, date: '2023-11-10', category: 'Altro', bankAccountId: 'acc2' },
-];
-
-const defaultBankAccounts: BankAccount[] = [
-  { id: 'acc1', name: 'Conto Principale', initialBalance: 5000, iban: 'IT60X0542811101000000123456' },
-  { id: 'acc2', name: 'Conto Risparmio', initialBalance: 10000, iban: 'IT12A0306909606100000063157' },
-];
+// Default data is now empty to prevent example data on restart
+const defaultExpenses: Expense[] = [];
+const defaultIncomes: Income[] = [];
+const defaultBankAccounts: BankAccount[] = [];
 
 const getStorageKey = (type: 'expenses' | 'incomes' | 'bankAccounts', name: string) => `condo_${type}_${name.replace(/\s/g, '_')}`;
 
@@ -180,7 +166,7 @@ const InnerApp: React.FC = () => {
             }
           }
         }
-        setExpenses(loadedExpenses || JSON.parse(JSON.stringify(defaultExpenses)));
+        setExpenses(loadedExpenses || []);
 
         // Load Incomes
         const incKey = getStorageKey('incomes', condoName);
@@ -194,7 +180,7 @@ const InnerApp: React.FC = () => {
              } catch (e) {}
           }
         }
-        setIncomes(loadedIncomes || JSON.parse(JSON.stringify(defaultIncomes)));
+        setIncomes(loadedIncomes || []);
 
         // Load Bank Accounts
         const bankKey = getStorageKey('bankAccounts', condoName);
@@ -208,7 +194,7 @@ const InnerApp: React.FC = () => {
               } catch (e) {}
            }
         }
-        setBankAccounts(loadedAccounts || JSON.parse(JSON.stringify(defaultBankAccounts)));
+        setBankAccounts(loadedAccounts || []);
 
       } catch (e) {
         console.error("Error loading data", e);
@@ -222,19 +208,19 @@ const InnerApp: React.FC = () => {
 
   // Save data to IndexedDB whenever it changes
   useEffect(() => {
-    if (condoName && expenses.length > 0) {
+    if (condoName) {
       set(getStorageKey('expenses', condoName), expenses).catch(e => console.error("Error saving expenses", e));
     }
   }, [expenses, condoName]);
 
   useEffect(() => {
-    if (condoName && incomes.length > 0) {
+    if (condoName) {
       set(getStorageKey('incomes', condoName), incomes).catch(e => console.error("Error saving incomes", e));
     }
   }, [incomes, condoName]);
 
   useEffect(() => {
-    if (condoName && bankAccounts.length > 0) {
+    if (condoName) {
       set(getStorageKey('bankAccounts', condoName), bankAccounts).catch(e => console.error("Error saving bank accounts", e));
     }
   }, [bankAccounts, condoName]);
@@ -276,6 +262,9 @@ const InnerApp: React.FC = () => {
   const handleDeleteExpense = (id: string) => {
     setExpenses(prev => prev.filter(e => e.id !== id));
   };
+  const handleClearAllExpenses = () => {
+    setExpenses([]);
+  };
   
   const handleStartDuplicateExpense = (expense: Expense) => {
      const duplicatedExpense: Expense = {
@@ -306,6 +295,9 @@ const InnerApp: React.FC = () => {
   };
   const handleDeleteIncome = (id: string) => {
     setIncomes(prev => prev.filter(i => i.id !== id));
+  };
+  const handleClearAllIncomes = () => {
+    setIncomes([]);
   };
 
   // Bank Account Handlers
@@ -457,9 +449,9 @@ const InnerApp: React.FC = () => {
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-fade-in">
           {currentView === 'dashboard' && <Dashboard expenses={expenses} incomes={incomes} bankAccounts={bankAccounts} condoName={condoName} />}
-          {currentView === 'list' && <ExpenseList expenses={expenses} onDelete={handleDeleteExpense} onEdit={handleStartEditExpense} condoName={condoName} bankAccounts={bankAccounts} onDuplicate={handleStartDuplicateExpense} onAdd={handleAddExpense} />}
+          {currentView === 'list' && <ExpenseList expenses={expenses} onDelete={handleDeleteExpense} onEdit={handleStartEditExpense} condoName={condoName} bankAccounts={bankAccounts} onDuplicate={handleStartDuplicateExpense} onAdd={handleAddExpense} onClearAll={handleClearAllExpenses} />}
           {currentView === 'add' && <ExpenseForm key={editingExpense ? editingExpense.id : 'new'} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} existingExpenses={expenses} initialData={editingExpense || undefined} onCancel={() => { setEditingExpense(null); setCurrentView('list'); }} bankAccounts={bankAccounts} />}
-          {currentView === 'listIncome' && <IncomeList incomes={incomes} onDelete={handleDeleteIncome} onEdit={handleStartEditIncome} condoName={condoName} bankAccounts={bankAccounts} onAdd={handleAddIncome} />}
+          {currentView === 'listIncome' && <IncomeList incomes={incomes} onDelete={handleDeleteIncome} onEdit={handleStartEditIncome} condoName={condoName} bankAccounts={bankAccounts} onAdd={handleAddIncome} onClearAll={handleClearAllIncomes} />}
           {currentView === 'addIncome' && <IncomeForm key={editingIncome ? editingIncome.id : 'new'} onAdd={handleAddIncome} onUpdate={handleUpdateIncome} initialData={editingIncome || undefined} onCancel={() => { setEditingIncome(null); setCurrentView('listIncome'); }} />}
           {currentView === 'listBankAccounts' && <BankAccountList bankAccounts={bankAccounts} onDelete={handleDeleteBankAccount} onEdit={handleStartEditBankAccount} expenses={expenses} incomes={incomes} />}
           {currentView === 'addBankAccount' && <BankAccountForm key={editingBankAccount ? editingBankAccount.id : 'new'} onAdd={handleAddBankAccount} onUpdate={handleUpdateBankAccount} initialData={editingBankAccount || undefined} onCancel={() => { setEditingBankAccount(null); setCurrentView('listBankAccounts'); }} />}

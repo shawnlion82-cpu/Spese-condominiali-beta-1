@@ -18,6 +18,7 @@ interface IncomeListProps {
   condoName: string;
   bankAccounts: BankAccount[];
   onAdd: (income: Income) => void;
+  onClearAll: () => void;
 }
 
 const categoryColors: Record<IncomeCategory, string> = {
@@ -27,7 +28,7 @@ const categoryColors: Record<IncomeCategory, string> = {
   [IncomeCategory.ALTRO]: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
 };
 
-export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdit, condoName, onAdd }) => {
+export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdit, condoName, onAdd, onClearAll }) => {
   const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -37,6 +38,7 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   
   const [incomeToDelete, setIncomeToDelete] = useState<string | null>(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   
   // Import State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +80,11 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
       onDelete(incomeToDelete);
       setIncomeToDelete(null);
     }
+  };
+  
+  const executeClearAll = () => {
+    onClearAll();
+    setShowDeleteAllConfirm(false);
   };
 
   const filteredIncomes = incomes.filter(i => {
@@ -430,6 +437,15 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
                     </div>
                  )}
               </div>
+              
+              {/* Delete All Button */}
+              <button 
+                onClick={() => setShowDeleteAllConfirm(true)}
+                className="p-2 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg transition-colors flex items-center justify-center gap-2"
+                title={t('list.deleteAll')}
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
 
@@ -528,6 +544,22 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
             <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
               <button onClick={executeDelete} type="button" className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700">Elimina</button>
               <button onClick={() => setIncomeToDelete(null)} type="button" className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-slate-600 shadow-sm px-4 py-2 bg-white dark:bg-slate-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 sm:mt-0">Annulla</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteAllConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30"><Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" /></div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mt-3">{t('list.deleteAll')}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{t('list.confirmDeleteAllMsg')}</p>
+            </div>
+            <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+              <button onClick={executeClearAll} type="button" className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700">{t('list.deleteAll')}</button>
+              <button onClick={() => setShowDeleteAllConfirm(false)} type="button" className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-slate-600 shadow-sm px-4 py-2 bg-white dark:bg-slate-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 sm:mt-0">{t('common.cancel')}</button>
             </div>
           </div>
         </div>

@@ -28,6 +28,7 @@ export const translations = {
     dashboard: {
       overview: 'Panoramica Esercizio',
       totalExpenses: 'Totale Spese',
+      totalPaidExpenses: 'Spese Pagate',
       totalIncome: 'Totale Incassato',
       balance: 'Saldo Esercizio',
       breakdown: 'Ripartizione Spese',
@@ -40,7 +41,11 @@ export const translations = {
       noExpenses: 'Nessuna spesa per l\'anno selezionato',
       movements: 'movimenti registrati',
       incomesRecorded: 'incassi registrati',
-      diffBalance: 'Differenza tra incassi e spese'
+      diffBalance: 'Differenza tra incassi e spese',
+      paidPercentage: '{percent}% del totale',
+      overdueTitle: 'Attenzione: Spese Scadute',
+      overdueSubtitle: 'Ci sono {count} spese non pagate con data scaduta.',
+      daysOverdue: '{days} gg scaduta'
     },
     list: {
       historyExpenses: 'Storico Spese',
@@ -73,7 +78,9 @@ export const translations = {
       colIban: 'IBAN',
       colInitBalance: 'Saldo Iniziale',
       colCurrBalance: 'Saldo Attuale',
-      noData: 'Nessun dato trovato.'
+      noData: 'Nessun dato trovato.',
+      deleteAll: 'Elimina Tutto',
+      confirmDeleteAllMsg: 'Sei sicuro di voler eliminare TUTTI i dati in questa lista? Questa azione è irreversibile e cancellerà definitivamente tutti i record.'
     },
     reports: {
       title: 'Report e Statistiche',
@@ -121,6 +128,7 @@ export const translations = {
     dashboard: {
       overview: 'Overview',
       totalExpenses: 'Total Expenses',
+      totalPaidExpenses: 'Paid Expenses',
       totalIncome: 'Total Income',
       balance: 'Balance',
       breakdown: 'Expenses Breakdown',
@@ -133,7 +141,11 @@ export const translations = {
       noExpenses: 'No expenses for the selected year',
       movements: 'recorded movements',
       incomesRecorded: 'recorded incomes',
-      diffBalance: 'Difference between income and expenses'
+      diffBalance: 'Difference between income and expenses',
+      paidPercentage: '{percent}% of total',
+      overdueTitle: 'Warning: Overdue Expenses',
+      overdueSubtitle: 'There are {count} unpaid expenses past their date.',
+      daysOverdue: '{days} days overdue'
     },
     list: {
       historyExpenses: 'Expenses History',
@@ -166,7 +178,9 @@ export const translations = {
       colIban: 'IBAN',
       colInitBalance: 'Init Balance',
       colCurrBalance: 'Curr Balance',
-      noData: 'No data found.'
+      noData: 'No data found.',
+      deleteAll: 'Delete All',
+      confirmDeleteAllMsg: 'Are you sure you want to delete ALL data in this list? This action is irreversible and will permanently remove all records.'
     },
     reports: {
       title: 'Reports & Stats',
@@ -214,6 +228,7 @@ export const translations = {
     dashboard: {
       overview: 'Resumen del Ejercicio',
       totalExpenses: 'Total Gastos',
+      totalPaidExpenses: 'Gastos Pagados',
       totalIncome: 'Total Ingresos',
       balance: 'Balance',
       breakdown: 'Desglose de Gastos',
@@ -226,7 +241,11 @@ export const translations = {
       noExpenses: 'Sin gastos para el año seleccionado',
       movements: 'movimientos registrados',
       incomesRecorded: 'ingresos registrados',
-      diffBalance: 'Diferencia entre ingresos y gastos'
+      diffBalance: 'Diferencia entre ingresos y gastos',
+      paidPercentage: '{percent}% del total',
+      overdueTitle: 'Atención: Gastos Vencidos',
+      overdueSubtitle: 'Hay {count} gastos impagos con fecha vencida.',
+      daysOverdue: '{days} días de retraso'
     },
     list: {
       historyExpenses: 'Historial de Gastos',
@@ -259,7 +278,9 @@ export const translations = {
       colIban: 'IBAN',
       colInitBalance: 'Saldo Inic.',
       colCurrBalance: 'Saldo Act.',
-      noData: 'No se encontraron datos.'
+      noData: 'No se encontraron datos.',
+      deleteAll: 'Eliminar Todo',
+      confirmDeleteAllMsg: '¿Estás seguro de que quieres eliminar TODOS los datos de esta lista? Esta acción es irreversible.'
     },
     reports: {
       title: 'Informes y Estadísticas',
@@ -307,6 +328,7 @@ export const translations = {
     dashboard: {
       overview: 'Aperçu de l\'Exercice',
       totalExpenses: 'Total Dépenses',
+      totalPaidExpenses: 'Dépenses Payées',
       totalIncome: 'Total Recettes',
       balance: 'Solde',
       breakdown: 'Répartition des Dépenses',
@@ -319,7 +341,11 @@ export const translations = {
       noExpenses: 'Aucune dépense pour l\'année sélectionnée',
       movements: 'mouvements enregistrés',
       incomesRecorded: 'recettes enregistrées',
-      diffBalance: 'Différence entre recettes et dépenses'
+      diffBalance: 'Différence entre recettes et dépenses',
+      paidPercentage: '{percent}% du total',
+      overdueTitle: 'Attention: Dépenses En Retard',
+      overdueSubtitle: 'Il y a {count} dépenses impayées en retard.',
+      daysOverdue: '{days} j. de retard'
     },
     list: {
       historyExpenses: 'Historique Dépenses',
@@ -352,7 +378,9 @@ export const translations = {
       colIban: 'IBAN',
       colInitBalance: 'Solde Init.',
       colCurrBalance: 'Solde Act.',
-      noData: 'Aucune donnée trouvée.'
+      noData: 'Aucune donnée trouvée.',
+      deleteAll: 'Tout Supprimer',
+      confirmDeleteAllMsg: 'Êtes-vous sûr de vouloir supprimer TOUTES les données de cette liste ? Cette action est irréversible.'
     },
     reports: {
       title: 'Rapports et Statistiques',
@@ -400,6 +428,7 @@ export const translations = {
     dashboard: {
       overview: 'Übersicht',
       totalExpenses: 'Gesamtausgaben',
+      totalPaidExpenses: 'Bezahlte Ausgaben',
       totalIncome: 'Gesamteinnahmen',
       balance: 'Saldo',
       breakdown: 'Ausgabenaufschlüsselung',
@@ -412,7 +441,11 @@ export const translations = {
       noExpenses: 'Keine Ausgaben für das ausgewählte Jahr',
       movements: 'registrierte Bewegungen',
       incomesRecorded: 'registrierte Einnahmen',
-      diffBalance: 'Differenz zwischen Einnahmen und Ausgaben'
+      diffBalance: 'Differenz zwischen Einnahmen und Ausgaben',
+      paidPercentage: '{percent}% der Gesamtmenge',
+      overdueTitle: 'Achtung: Überfällige Ausgaben',
+      overdueSubtitle: 'Es gibt {count} unbezahlte Ausgaben, deren Datum überschritten ist.',
+      daysOverdue: '{days} Tage überfällig'
     },
     list: {
       historyExpenses: 'Ausgabenverlauf',
@@ -445,7 +478,9 @@ export const translations = {
       colIban: 'IBAN',
       colInitBalance: 'Anfangssaldo',
       colCurrBalance: 'Akt. Saldo',
-      noData: 'Keine Daten gefunden.'
+      noData: 'Keine Daten gefunden.',
+      deleteAll: 'Alle Löschen',
+      confirmDeleteAllMsg: 'Sind Sie sicher, dass Sie ALLE Daten in dieser Liste löschen möchten? Diese Aktion ist irreversibel.'
     },
     reports: {
       title: 'Berichte und Statistiken',

@@ -1,8 +1,7 @@
-
 import React, { useMemo, useState } from 'react';
 import { Expense, Income, BankAccount } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { TrendingUp, TrendingDown, AlertCircle, CalendarRange, ChevronDown, Download, Database, FileSpreadsheet, FileJson, FileText } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertCircle, CalendarRange, ChevronDown, Download, Database, FileSpreadsheet, FileJson, FileText, CheckCircle2, Wallet, AlertTriangle, Clock } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -15,7 +14,22 @@ interface DashboardProps {
   condoName: string;
 }
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
+// Mappatura colori specifici per categoria per il grafico
+const CHART_COLORS: Record<string, string> = {
+  'Manutenzione': '#f97316', // Orange
+  'Utenze': '#3b82f6', // Blue
+  'Pulizia': '#14b8a6', // Teal
+  'Pulizia Scale': '#10b981', // Emerald
+  'Amministrazione': '#d946ef', // Fuchsia (Requested)
+  'Compenso Amministratore': '#a855f7', // Purple
+  'Assicurazione': '#f43f5e', // Rose
+  'Spese Bancarie': '#eab308', // Yellow (Requested)
+  'Bollettino Postale': '#f59e0b', // Amber
+  'Lettura Acqua': '#06b6d4', // Cyan
+  'Varie': '#64748b', // Slate
+};
+
+const DEFAULT_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
 
 export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAccounts, condoName }) => {
   const { t, language } = useLanguage();
@@ -39,13 +53,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
     return incomes.filter(i => new Date(i.date).getFullYear() === selectedYear);
   }, [incomes, selectedYear]);
 
+  // Totale Spese (Registrate - Da pagare + Pagate)
   const totalAmount = useMemo(() => {
     return yearlyExpenses.reduce((sum, item) => sum + item.amount, 0);
+  }, [yearlyExpenses]);
+
+  // Totale Spese (Solo Pagate) - Mantenuto per statistica ed export
+  const totalPaidAmount = useMemo(() => {
+    return yearlyExpenses
+      .filter(item => item.status === 'paid')
+      .reduce((sum, item) => sum + item.amount, 0);
   }, [yearlyExpenses]);
 
   const totalIncassato = useMemo(() => {
     return yearlyIncomes.reduce((sum, item) => sum + item.amount, 0);
   }, [yearlyIncomes]);
+
+  // Saldo Esercizio = Incassi - Totale Spese (Richiesta utente: differenza tra incassato e totale da pagare)
+  const currentBalance = totalIncassato - totalAmount;
+
+  // Spese Scadute (Globali, non solo anno selezionato)
+  const overdueExpenses = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return expenses
+      .filter(e => e.status === 'unpaid' && e.date < today)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Ordina per data (più vecchie prima)
+  }, [expenses]);
+
+  const getDaysOverdue = (dateString: string) => {
+    const today = new Date();
+    const expenseDate = new Date(dateString);
+    const diffTime = Math.abs(today.getTime() - expenseDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    return diffDays;
+  };
 
   const categoryData = useMemo(() => {
     const map = new Map<string, number>();
@@ -83,6 +124,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
     return new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(val);
   };
 
+  const paidPercentage = totalAmount > 0 ? Math.round((totalPaidAmount / totalAmount) * 100) : 0;
+
   const handleExportBackup = () => {
     const backupData = {
       condoName,
@@ -111,9 +154,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
     const summaryData = [
         { Chiave: "Nome Condominio", Valore: condoName },
         { Chiave: "Data Esportazione", Valore: new Date().toLocaleDateString() },
-        { Chiave: "Totale Spese", Valore: expenses.reduce((a, b) => a + b.amount, 0) },
-        { Chiave: "Totale Entrate", Valore: incomes.reduce((a, b) => a + b.amount, 0) },
-        { Chiave: "Saldo Attuale", Valore: incomes.reduce((a, b) => a + b.amount, 0) - expenses.reduce((a, b) => a + b.amount, 0) }
+        { Chiave: "Totale Spese", Valore: totalAmount },
+        { Chiave: "Totale Spese Pagate", Valore: totalPaidAmount },
+        { Chiave: "Totale Entrate", Valore: totalIncassato },
+        { Chiave: "Saldo Esercizio", Valore: currentBalance }
     ];
 
     // Expenses Sheet
@@ -189,8 +233,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
     finalY += 10;
 
     const totExp = expenses.reduce((a, b) => a + b.amount, 0);
+    const totPaid = expenses.filter(e => e.status === 'paid').reduce((a, b) => a + b.amount, 0);
     const totInc = incomes.reduce((a, b) => a + b.amount, 0);
-    const balance = totInc - totExp;
+    const balance = totInc - totExp; // Changed to match dashboard logic
 
     const summaryData = [
         [t('dashboard.totalExpenses'), new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(totExp)],
@@ -215,12 +260,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
         e.date,
         e.description,
         e.category,
+        e.status === 'paid' ? 'Pagato' : 'Da Pagare',
         new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(e.amount)
     ]);
 
     (doc as any).autoTable({
         startY: finalY + 5,
-        head: [['Data', 'Descrizione', 'Categoria', 'Importo']],
+        head: [['Data', 'Descrizione', 'Categoria', 'Stato', 'Importo']],
         body: expensesRows,
         theme: 'grid',
         headStyles: { fillColor: [239, 68, 68] }, // Red for expenses
@@ -276,33 +322,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Expenses */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t('dashboard.totalExpenses')} {selectedYear}</h3>
+            <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t('dashboard.totalExpenses')}</h3>
             <div className="p-2 bg-red-50 dark:bg-red-900/30 rounded-lg">
               <TrendingDown className="w-5 h-5 text-red-500 dark:text-red-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalAmount)}</p>
+          <p className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalAmount)}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
             {yearlyExpenses.length} {t('dashboard.movements')}
           </p>
         </div>
 
+        {/* Paid Expenses */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t('dashboard.totalIncome')} {selectedYear}</h3>
+            <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t('dashboard.totalPaidExpenses')}</h3>
+            <div className="p-2 bg-violet-50 dark:bg-violet-900/30 rounded-lg">
+              <Wallet className="w-5 h-5 text-violet-500 dark:text-violet-400" />
+            </div>
+          </div>
+          <p className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalPaidAmount)}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+             {t('dashboard.paidPercentage').replace('{percent}', paidPercentage.toString())}
+          </p>
+        </div>
+
+        {/* Total Income */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t('dashboard.totalIncome')}</h3>
             <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
               <TrendingUp className="w-5 h-5 text-green-500 dark:text-green-400" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalIncassato)}</p>
+          <p className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalIncassato)}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
              {yearlyIncomes.length} {t('dashboard.incomesRecorded')}
           </p>
         </div>
 
+        {/* Balance */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t('dashboard.balance')}</h3>
@@ -310,12 +373,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
               <AlertCircle className="w-5 h-5 text-blue-500 dark:text-blue-400" />
             </div>
           </div>
-          <p className={`text-3xl font-bold ${totalIncassato - totalAmount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {formatCurrency(totalIncassato - totalAmount)}
+          <p className={`text-2xl lg:text-3xl font-bold ${currentBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            {formatCurrency(currentBalance)}
           </p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t('dashboard.diffBalance')}</p>
+          <div className="flex items-center gap-1 mt-1 text-xs text-slate-400 dark:text-slate-500">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>Incassi - Tot. Spese</span>
+          </div>
         </div>
       </div>
+
+      {/* OVERDUE EXPENSES ALERT */}
+      {overdueExpenses.length > 0 && (
+        <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-xl p-4 sm:p-6 animate-fade-in">
+          <div className="flex items-start gap-4">
+            <div className="p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg shrink-0">
+              <AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div className="flex-1">
+               <h3 className="text-lg font-bold text-orange-800 dark:text-orange-200">
+                 {t('dashboard.overdueTitle')}
+               </h3>
+               <p className="text-sm text-orange-700 dark:text-orange-300/80 mt-1 mb-4">
+                 {t('dashboard.overdueSubtitle').replace('{count}', overdueExpenses.length.toString())}
+               </p>
+               
+               <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {overdueExpenses.map(expense => (
+                     <div key={expense.id} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-orange-100 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                        <div>
+                           <p className="font-medium text-slate-800 dark:text-white truncate max-w-[150px]">{expense.description}</p>
+                           <p className="text-xs text-slate-500 dark:text-slate-400">{expense.date}</p>
+                        </div>
+                        <div className="text-right">
+                           <p className="font-bold text-red-600 dark:text-red-400">{formatCurrency(expense.amount)}</p>
+                           <p className="text-[10px] flex items-center justify-end gap-1 text-orange-600 dark:text-orange-400 font-medium">
+                              <Clock size={10} />
+                              {t('dashboard.daysOverdue').replace('{days}', getDaysOverdue(expense.date).toString())}
+                           </p>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
@@ -334,7 +437,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, incomes, bankAcc
                     dataKey="value"
                   >
                     {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="rgba(255,255,255,0.1)" />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={CHART_COLORS[entry.name] || DEFAULT_COLORS[index % DEFAULT_COLORS.length]} 
+                        stroke="rgba(255,255,255,0.1)" 
+                      />
                     ))}
                   </Pie>
                   <Tooltip 
