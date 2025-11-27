@@ -1,10 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Expense, ExpenseCategory, BankAccount, Attachment } from '../types';
-import { Search, Filter, X, Calendar, ChevronDown, Trash2, AlertTriangle, SquarePen, Paperclip, FileDown, Download, Eye } from 'lucide-react';
+import { Search, Filter, X, Calendar, ChevronDown, Trash2, AlertTriangle, SquarePen, Paperclip, FileDown, Download, Eye, FileText, FileCode } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useLanguage } from '../i18n/LanguageContext';
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 
 interface ExpenseListProps {
   expenses: Expense[];
@@ -83,6 +84,22 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, on
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
   const [viewingAttachments, setViewingAttachments] = useState<Attachment[] | null>(null);
   
+  // Export Menu State
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const activeFiltersCount = useMemo(() => {
     return [startDate, endDate, selectedCategory, selectedAccountId, paymentStatus].filter(Boolean).length;
   }, [startDate, endDate, selectedCategory, selectedAccountId, paymentStatus]);
@@ -166,6 +183,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, on
 
     const fileName = `spese_${condoName.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
     doc.save(fileName);
+    setShowExportMenu(false);
   };
 
   const handleExportCSV = () => {
@@ -202,8 +220,110 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, on
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setShowExportMenu(false);
   };
 
+  const handleExportXML = () => {
+    if (filteredExpenses.length === 0) return;
+
+    let xmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<expenses>\n`;
+    
+    filteredExpenses.forEach(e => {
+      const bankAccountName = bankAccounts.find(acc => acc.id === e.bankAccountId)?.name || '';
+      xmlContent += `  <expense>\n`;
+      xmlContent += `    <id>${e.id}</id>\n`;
+      xmlContent += `    <date>${e.date}</date>\n`;
+      xmlContent += `    <description>${e.description.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</description>\n`;
+      xmlContent += `    <category>${e.category}</category>\n`;
+      xmlContent += `    <amount>${e.amount}</amount>\n`;
+      xmlContent += `    <status>${e.status}</status>\n`;
+      xmlContent += `    <bankAccount>${bankAccountName.replace(/&/g, '&amp;')}</bankAccount>\n`;
+      xmlContent += `  </expense>\n`;
+    });
+    
+    xmlContent += `</expenses>`;
+
+    const blob = new Blob([xmlContent], { type: 'application/xml' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    const fileName = `spese_${condoName.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.xml`;
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setShowExportMenu(false);
+  };
+
+  const handleExportDOCX = async () => {
+    if (filteredExpenses.length === 0) return;
+
+    const rows = [
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: "Data", style: "strong" })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: "Descrizione", style: "strong" })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: "Categoria", style: "strong" })], width: { size: 25, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: "Importo", style: "strong" })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+        ],
+        tableHeader: true,
+      }),
+    ];
+
+    const locale = language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language);
+
+    filteredExpenses.forEach(e => {
+       rows.push(
+         new TableRow({
+           children: [
+             new TableCell({ children: [new Paragraph(new Date(e.date).toLocaleDateString(locale))] }),
+             new TableCell({ children: [new Paragraph(e.description)] }),
+             new TableCell({ children: [new Paragraph(e.category)] }),
+             new TableCell({ children: [new Paragraph(new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(e.amount))] }),
+           ],
+         })
+       );
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({ text: `Riepilogo Spese - ${condoName}`, heading: "Heading1" }),
+          new Paragraph({ text: `Data export: ${new Date().toLocaleDateString(locale)}` }),
+          new Paragraph({ text: "" }), // spacer
+          new Table({
+            rows: rows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+               top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            }
+          })
+        ],
+      }],
+    });
+
+    try {
+      const blob = await Packer.toBlob(doc);
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = `spese_${condoName.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error("Error creating DOCX", e);
+      alert("Errore durante la creazione del file Word.");
+    }
+    setShowExportMenu(false);
+  };
 
   return (
     <>
@@ -247,22 +367,34 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, on
                   </span>
                 )}
               </button>
-              <button
-                onClick={handleExportPDF}
-                className="px-3 py-2 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
-                title="Esporta PDF"
-              >
-                <FileDown size={16} />
-                <span className="hidden sm:inline">{t('list.exportPDF')}</span>
-              </button>
-              <button
-                onClick={handleExportCSV}
-                className="px-3 py-2 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
-                title="Esporta CSV"
-              >
-                <FileDown size={16} />
-                <span className="hidden sm:inline">{t('list.exportCSV')}</span>
-              </button>
+
+              {/* Export Dropdown */}
+              <div className="relative" ref={exportMenuRef}>
+                 <button
+                   onClick={() => setShowExportMenu(!showExportMenu)}
+                   className="px-3 py-2 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                 >
+                   <FileDown size={16} />
+                   <span className="hidden sm:inline">{t('list.export')}</span>
+                   <ChevronDown size={14} className="hidden sm:inline" />
+                 </button>
+                 {showExportMenu && (
+                    <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 py-1 z-20 animate-fade-in">
+                       <button onClick={handleExportPDF} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          <FileText size={16} className="text-red-500" /> {t('list.exportPDF')}
+                       </button>
+                       <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          <FileText size={16} className="text-green-500" /> {t('list.exportCSV')}
+                       </button>
+                       <button onClick={handleExportDOCX} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          <FileText size={16} className="text-blue-500" /> {t('list.exportDOCX')}
+                       </button>
+                       <button onClick={handleExportXML} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          <FileCode size={16} className="text-orange-500" /> {t('list.exportXML')}
+                       </button>
+                    </div>
+                 )}
+              </div>
             </div>
           </div>
 

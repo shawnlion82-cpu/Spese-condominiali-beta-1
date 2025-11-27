@@ -1,7 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Income, IncomeCategory, BankAccount } from '../types';
-import { Search, Filter, X, Calendar, ChevronDown, Trash2, AlertTriangle, Pencil, FileDown } from 'lucide-react';
+import { Search, Filter, X, Calendar, ChevronDown, Trash2, AlertTriangle, Pencil, FileDown, FileText, FileCode } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 
 interface IncomeListProps {
   incomes: Income[];
@@ -19,6 +23,7 @@ const categoryColors: Record<IncomeCategory, string> = {
 };
 
 export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdit, condoName }) => {
+  const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   
@@ -27,6 +32,22 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   
   const [incomeToDelete, setIncomeToDelete] = useState<string | null>(null);
+  
+  // Export Menu State
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const activeFiltersCount = (startDate ? 1 : 0) + (endDate ? 1 : 0) + (selectedCategory ? 1 : 0);
 
@@ -85,6 +106,146 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setShowExportMenu(false);
+  };
+
+  const handleExportPDF = () => {
+      const doc = new jsPDF();
+      const locale = language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language);
+
+      const tableData = filteredIncomes.map(i => {
+          return [
+              new Date(i.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }),
+              i.description,
+              i.category,
+              new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(i.amount)
+          ]
+      });
+      const totalString = new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(filteredTotal);
+  
+      doc.setFontSize(18);
+      doc.text(`Riepilogo Incassi - ${condoName}`, 14, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Report generato il ${new Date().toLocaleDateString(locale)}`, 14, 28);
+  
+      (doc as any).autoTable({
+        startY: 35,
+        head: [['Data', 'Descrizione', 'Categoria', 'Importo']],
+        body: tableData,
+        foot: [['', '', 'TOTALE', totalString]],
+        theme: 'grid',
+        headStyles: { fillColor: [16, 185, 129] }, // Green for income
+        footStyles: { fontStyle: 'bold', fillColor: [241, 245, 249] },
+        didDrawPage: (data: any) => {
+          const pageCount = doc.getNumberOfPages();
+          doc.setFontSize(10);
+          doc.text(`Pagina ${data.pageNumber} di ${pageCount}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
+        }
+      });
+  
+      const fileName = `incassi_${condoName.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(fileName);
+      setShowExportMenu(false);
+  };
+
+  const handleExportXML = () => {
+    if (filteredIncomes.length === 0) return;
+
+    let xmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<incomes>\n`;
+    
+    filteredIncomes.forEach(i => {
+      xmlContent += `  <income>\n`;
+      xmlContent += `    <id>${i.id}</id>\n`;
+      xmlContent += `    <date>${i.date}</date>\n`;
+      xmlContent += `    <description>${i.description.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</description>\n`;
+      xmlContent += `    <category>${i.category}</category>\n`;
+      xmlContent += `    <amount>${i.amount}</amount>\n`;
+      xmlContent += `  </income>\n`;
+    });
+    
+    xmlContent += `</incomes>`;
+
+    const blob = new Blob([xmlContent], { type: 'application/xml' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    const fileName = `incassi_${condoName.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.xml`;
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setShowExportMenu(false);
+  };
+
+  const handleExportDOCX = async () => {
+    if (filteredIncomes.length === 0) return;
+
+    const rows = [
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: "Data", style: "strong" })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: "Descrizione", style: "strong" })], width: { size: 45, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: "Categoria", style: "strong" })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+          new TableCell({ children: [new Paragraph({ text: "Importo", style: "strong" })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+        ],
+        tableHeader: true,
+      }),
+    ];
+
+    const locale = language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language);
+
+    filteredIncomes.forEach(i => {
+       rows.push(
+         new TableRow({
+           children: [
+             new TableCell({ children: [new Paragraph(new Date(i.date).toLocaleDateString(locale))] }),
+             new TableCell({ children: [new Paragraph(i.description)] }),
+             new TableCell({ children: [new Paragraph(i.category)] }),
+             new TableCell({ children: [new Paragraph(new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }).format(i.amount))] }),
+           ],
+         })
+       );
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({ text: `Riepilogo Incassi - ${condoName}`, heading: "Heading1" }),
+          new Paragraph({ text: `Data export: ${new Date().toLocaleDateString(locale)}` }),
+          new Paragraph({ text: "" }), // spacer
+          new Table({
+            rows: rows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+               top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+               insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            }
+          })
+        ],
+      }],
+    });
+
+    try {
+      const blob = await Packer.toBlob(doc);
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = `incassi_${condoName.replace(/\s/g, '_')}_${new Date().toISOString().slice(0, 10)}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error("Error creating DOCX", e);
+      alert("Errore durante la creazione del file Word.");
+    }
+    setShowExportMenu(false);
   };
 
   return (
@@ -97,7 +258,7 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Visualizzati {filteredIncomes.length} movimenti per un totale di 
                 <span className="font-bold text-slate-700 dark:text-slate-200 ml-1">
-                  {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(filteredTotal)}
+                  {new Intl.NumberFormat(language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language), { style: 'currency', currency: 'EUR' }).format(filteredTotal)}
                 </span>
               </p>
             </div>
@@ -121,14 +282,34 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
                 <Filter size={16} />
                 {activeFiltersCount > 0 && <span className="bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>}
               </button>
-              <button
-                onClick={handleExportCSV}
-                className="px-3 py-2 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
-                title="Esporta CSV"
-              >
-                <FileDown size={16} />
-                <span className="hidden sm:inline">CSV</span>
-              </button>
+              
+               {/* Export Dropdown */}
+              <div className="relative" ref={exportMenuRef}>
+                 <button
+                   onClick={() => setShowExportMenu(!showExportMenu)}
+                   className="px-3 py-2 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                 >
+                   <FileDown size={16} />
+                   <span className="hidden sm:inline">{t('list.export')}</span>
+                   <ChevronDown size={14} className="hidden sm:inline" />
+                 </button>
+                 {showExportMenu && (
+                    <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 py-1 z-20 animate-fade-in">
+                       <button onClick={handleExportPDF} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          <FileText size={16} className="text-red-500" /> {t('list.exportPDF')}
+                       </button>
+                       <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          <FileText size={16} className="text-green-500" /> {t('list.exportCSV')}
+                       </button>
+                       <button onClick={handleExportDOCX} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          <FileText size={16} className="text-blue-500" /> {t('list.exportDOCX')}
+                       </button>
+                       <button onClick={handleExportXML} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          <FileCode size={16} className="text-orange-500" /> {t('list.exportXML')}
+                       </button>
+                    </div>
+                 )}
+              </div>
             </div>
           </div>
 
@@ -172,7 +353,7 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
                 filteredIncomes.map((income) => (
                   <tr key={income.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                      {new Date(income.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {new Date(income.date).toLocaleDateString(language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language), { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
                     <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">{income.description}</td>
                     <td className="px-6 py-4">
@@ -181,7 +362,7 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right font-bold text-green-600 dark:text-green-400">
-                      {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(income.amount)}
+                      {new Intl.NumberFormat(language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language), { style: 'currency', currency: 'EUR' }).format(income.amount)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -204,7 +385,7 @@ export const IncomeList: React.FC<IncomeListProps> = ({ incomes, onDelete, onEdi
                 <tr>
                   <td colSpan={3} className="px-6 py-4 text-right font-bold text-slate-600 dark:text-slate-300">TOTALE</td>
                   <td className="px-6 py-4 text-right font-bold text-slate-900 dark:text-white text-lg">
-                    {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(filteredTotal)}
+                    {new Intl.NumberFormat(language === 'en' ? 'en-US' : (language === 'it' ? 'it-IT' : language), { style: 'currency', currency: 'EUR' }).format(filteredTotal)}
                   </td>
                   <td className="px-6 py-4"></td>
                 </tr>
