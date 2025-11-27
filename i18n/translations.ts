@@ -1,3 +1,4 @@
+
 export type Language = 'it' | 'en' | 'es' | 'fr' | 'de';
 
 export const translations = {
@@ -16,6 +17,7 @@ export const translations = {
       expenses: 'Lista Spese',
       incomes: 'Lista Incassi',
       accounts: 'Conti',
+      reports: 'Report',
       newExpense: 'Nuova Spesa',
       newIncome: 'Nuovo Incasso',
       logout: 'Cambia Condominio',
@@ -59,6 +61,16 @@ export const translations = {
       colCurrBalance: 'Saldo Attuale',
       noData: 'Nessun dato trovato.'
     },
+    reports: {
+      title: 'Report Spese',
+      subtitle: 'Analisi dettagliata per periodo e categoria',
+      groupByMonth: 'Raggruppa per Mese',
+      groupByCategory: 'Raggruppa per Categoria',
+      total: 'Totale',
+      empty: 'Nessuna spesa trovata per i criteri selezionati',
+      month: 'Mese',
+      category: 'Categoria'
+    },
     common: {
       delete: 'Elimina',
       cancel: 'Annulla',
@@ -83,6 +95,7 @@ export const translations = {
       expenses: 'Expenses',
       incomes: 'Incomes',
       accounts: 'Accounts',
+      reports: 'Reports',
       newExpense: 'New Expense',
       newIncome: 'New Income',
       logout: 'Switch Condo',
@@ -126,6 +139,16 @@ export const translations = {
       colCurrBalance: 'Curr Balance',
       noData: 'No data found.'
     },
+    reports: {
+      title: 'Expenses Reports',
+      subtitle: 'Detailed analysis by period and category',
+      groupByMonth: 'Group by Month',
+      groupByCategory: 'Group by Category',
+      total: 'Total',
+      empty: 'No expenses found for selected criteria',
+      month: 'Month',
+      category: 'Category'
+    },
     common: {
       delete: 'Delete',
       cancel: 'Cancel',
@@ -150,6 +173,7 @@ export const translations = {
       expenses: 'Gastos',
       incomes: 'Ingresos',
       accounts: 'Cuentas',
+      reports: 'Informes',
       newExpense: 'Nuevo Gasto',
       newIncome: 'Nuevo Ingreso',
       logout: 'Cambiar Condominio',
@@ -193,6 +217,16 @@ export const translations = {
       colCurrBalance: 'Saldo Act.',
       noData: 'No se encontraron datos.'
     },
+    reports: {
+      title: 'Informes de Gastos',
+      subtitle: 'Análisis detallado por período y categoría',
+      groupByMonth: 'Agrupar por Mes',
+      groupByCategory: 'Agrupar por Categoría',
+      total: 'Total',
+      empty: 'No se encontraron gastos',
+      month: 'Mes',
+      category: 'Categoría'
+    },
     common: {
       delete: 'Eliminar',
       cancel: 'Cancelar',
@@ -217,6 +251,7 @@ export const translations = {
       expenses: 'Dépenses',
       incomes: 'Recettes',
       accounts: 'Comptes',
+      reports: 'Rapports',
       newExpense: 'Nouvelle Dépense',
       newIncome: 'Nouvelle Recette',
       logout: 'Changer Copro',
@@ -260,6 +295,16 @@ export const translations = {
       colCurrBalance: 'Solde Act.',
       noData: 'Aucune donnée trouvée.'
     },
+    reports: {
+      title: 'Rapports de Dépenses',
+      subtitle: 'Analyse détaillée par période et catégorie',
+      groupByMonth: 'Grouper par Mois',
+      groupByCategory: 'Grouper par Catégorie',
+      total: 'Total',
+      empty: 'Aucune dépense trouvée',
+      month: 'Mois',
+      category: 'Catégorie'
+    },
     common: {
       delete: 'Supprimer',
       cancel: 'Annuler',
@@ -284,6 +329,7 @@ export const translations = {
       expenses: 'Ausgaben',
       incomes: 'Einnahmen',
       accounts: 'Konten',
+      reports: 'Berichte',
       newExpense: 'Neue Ausgabe',
       newIncome: 'Neue Einnahme',
       logout: 'Wechseln',
@@ -326,6 +372,16 @@ export const translations = {
       colInitBalance: 'Anfangssaldo',
       colCurrBalance: 'Akt. Saldo',
       noData: 'Keine Daten gefunden.'
+    },
+    reports: {
+      title: 'Ausgabenberichte',
+      subtitle: 'Detaillierte Analyse nach Zeitraum und Kategorie',
+      groupByMonth: 'Nach Monat gruppieren',
+      groupByCategory: 'Nach Kategorie gruppieren',
+      total: 'Gesamt',
+      empty: 'Keine Ausgaben gefunden',
+      month: 'Monat',
+      category: 'Kategorie'
     },
     common: {
       delete: 'Löschen',

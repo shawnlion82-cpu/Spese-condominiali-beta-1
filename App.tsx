@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Plus, LogOut, Building2, TrendingUp, List, DollarSign, Banknote, Moon, Sun, Globe, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Plus, LogOut, Building2, TrendingUp, List, DollarSign, Banknote, Moon, Sun, Globe, Loader2, PieChart } from 'lucide-react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { ExpenseForm } from './components/ExpenseForm';
@@ -9,6 +9,7 @@ import { IncomeForm } from './components/IncomeForm';
 import { IncomeList } from './components/IncomeList';
 import { BankAccountList } from './components/BankAccountList';
 import { BankAccountForm } from './components/BankAccountForm';
+import { ReportView } from './components/ReportView';
 import { Expense, Income, BankAccount } from './types';
 import { generateId } from './utils';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -36,7 +37,7 @@ const defaultBankAccounts: BankAccount[] = [
 
 const getStorageKey = (type: 'expenses' | 'incomes' | 'bankAccounts', name: string) => `condo_${type}_${name.replace(/\s/g, '_')}`;
 
-type View = 'dashboard' | 'add' | 'list' | 'addIncome' | 'listIncome' | 'listBankAccounts' | 'addBankAccount';
+type View = 'dashboard' | 'add' | 'list' | 'addIncome' | 'listIncome' | 'listBankAccounts' | 'addBankAccount' | 'reports';
 
 interface NavButtonProps {
   active?: boolean;
@@ -443,6 +444,7 @@ const InnerApp: React.FC = () => {
             <NavButton active={currentView === 'list'} onClick={() => handleNavClick('list')} icon={<List size={20} />} label={t('nav.expenses')} />
             <NavButton active={currentView === 'listIncome'} onClick={() => handleNavClick('listIncome')} icon={<TrendingUp size={20} />} label={t('nav.incomes')} />
             <NavButton active={currentView === 'listBankAccounts'} onClick={() => handleNavClick('listBankAccounts')} icon={<Banknote size={20} />} label={t('nav.accounts')} />
+            <NavButton active={currentView === 'reports'} onClick={() => handleNavClick('reports')} icon={<PieChart size={20} />} label={t('nav.reports')} />
           </div>
           <div className="flex gap-2 md:gap-3">
             <NavButton onClick={() => handleNavClick('add')} icon={<Plus size={20} />} label={t('nav.newExpense')} variant="primary" />
@@ -460,6 +462,7 @@ const InnerApp: React.FC = () => {
           {currentView === 'addIncome' && <IncomeForm key={editingIncome ? editingIncome.id : 'new'} onAdd={handleAddIncome} onUpdate={handleUpdateIncome} initialData={editingIncome || undefined} onCancel={() => { setEditingIncome(null); setCurrentView('listIncome'); }} />}
           {currentView === 'listBankAccounts' && <BankAccountList bankAccounts={bankAccounts} onDelete={handleDeleteBankAccount} onEdit={handleStartEditBankAccount} expenses={expenses} incomes={incomes} />}
           {currentView === 'addBankAccount' && <BankAccountForm key={editingBankAccount ? editingBankAccount.id : 'new'} onAdd={handleAddBankAccount} onUpdate={handleUpdateBankAccount} initialData={editingBankAccount || undefined} onCancel={() => { setEditingBankAccount(null); setCurrentView('listBankAccounts'); }} />}
+          {currentView === 'reports' && <ReportView expenses={expenses} condoName={condoName} />}
         </div>
       </main>
     </div>
